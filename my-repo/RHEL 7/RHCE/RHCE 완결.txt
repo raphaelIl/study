@@ -1,0 +1,778 @@
+# root password 설정
+# LDAP User 설정 (이건 못함)
+
+사전확인 항목
+    system1과 system2의 관리자 root의 패스워드는 atenorth입니다.
+    system1.example.com은 172.16.3.30/255.255.255.0이고, system2는 172.16.3.40/255.255.255.0입니다.
+    system1.example.com은 서버로, system2.example.com은 클라이언트로 사용됩니다.
+
+======
+SELinux
+  - system1과 system2 모두 SELinux는 반드시 enforcing 모드로 동작해야 합니다.
+
+vi /etc/selinux/config
+
+포트포워딩
+다음 요구사항을 따르도록 system에 포트포워딩을 구성하시오.
+  - 172.24.3.0/24 네트워크에 있는 시스템들을 위해서 로컬 포트 5423은 system1에 80번 포트로 포워딩 됩니다.
+  - 이 설정은 반드시 고정입니다.
+
+---
+# man firewalld.richlanguage
+firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=172.24.3.0/24 forward-port port=5423 protocol=tcp to-port=80'
+firewall-cmd --reload
+
+
+
+SSH 접근하기
+다음과 같이 ssh 접근을 구성하시오
+  - 사용자들은 example.com내에 있는 귀하의 가상시스템에 원격에서 ssh 접근할수 있게 합니다.
+  - my133.org(172.16.20.0/16) 안에 있는 클라이언트는 귀하의 시스템에 ssh로 접근할 수 없어야 합니다.
+
+---
+# man firewalld.richlanguage
+firewall-cmd --permanent --add-rich-rule='rule family=ipv4 service name=ssh source address=172.16.20.0/16 invert=True accept'
+
+
+
+IPv6 구성
+system1과 system2의 eth0에 다음 IPv6 주소를 구성하시오.
+  - system1은 203::ac18::31e/64를
+  - system2는 203::ac18::31e/64를
+  - 두 시스템 모두 203::ac18/64에 네트워크 접속이 가능해야 하고
+  - 리부팅 후에도 유지되어야 합니다.
+  - 두 시스템의 IPv4는 여전히 유지해야한다.  
+
+---
+nmcli con mod eth1 ipv6.address '203::ac18::31e/64'
+nmcli con mod eth1 ipv6.method manual
+
+nmcli con mod eth2 ipv6.address '203::ac18::31e/64'
+nmcli con mod eth2 ipv6.method manual
+
+
+
+링크조합구성(link aggregation)
+다음 요구사항을 따르는 system1.example.com과 system2.example.com 사이의 링크를 구성하십시오.
+  - 링크 인터페이스는 eth1과 eth2를 사용합니다.
+  - 링크를 구성하고 있는 하나의 인터페이스 또는 네트워크가 다운되어도 계속 작동해야 합니다.
+  - system1에 있는 링크 인터페이스는 172.16.3.45에 서브넷 마스크 255.255.255.0을 가집니다.
+  - system2에 있는 링크 인터페이스는 172.16.3.55에 서브넷 마스크 255.255.255.0을 가집니다.
+  - link는 시스템 부팅 후에도 활성화 되어야 합니다.
+=solution=========================================    
+teaming 구성 : system 1, 2에 모두 설정
+
+
+nmcli con add type team con-name team0 ifname team0 config '{"runner":{"name":"activebackup"}}'
+nmcli con mod team0 ipv4.addresses '172.16.3.45/24'
+nmcli con mod team0 ipv4.method manual
+nmcli con add type team-slave con-name team0-port1 ifname eth1 master team0
+nmcli con add type team-slave con-name team0-port2 ifname eth2 master team0
+
+nmcli con reload
+nmcli con up team0
+nmcli con up team0-port1
+nmcli con up team0-port2
+
+
+사용자 환경 커스터마이즈
+system1과 system2 양쪽 모두에 아래 명령을 실행하는 커스텀 명령 qstat을 생성하십시오.
+이 명령은 시스템의 모든 사용자가 사용가능해야 합니다.
+/bin/ps -Ao pid,tuser,fname,rsz
+
+---
+vi /usr/local/bin/qstat
+
+#!/bin/bash
+/bin/ps -Ao pid,tuser,fname,rsz
+
+chmod +x /usr/local/bin/qstat
+
+
+
+로컬 메일 서비스 구성
+다음 요구사항에 따르도록 system1과 system2 양쪽 모두에 메일을 구성하시오.
+  - 시스템들은 외부소스에서 수신되는 이메일을 받아들이지 않습니다.
+  - 이들 시스템상의 로컬에서 발신되는 어떤 메일이든 자동으로 smtp6.example.com을 경유합니다.
+  - 이들 시스템에서 발신된 메일은 desktop6.example.com에서 온것으로 보여집니다.
+  - 로컬사용자 frank로 메일을 보내서 귀하의 구성을 테스트할 수 있습니다.
+  - smtp.example.com 시스템이 이 사용자 계정의 메일을 http://server.example.com/received/frank로 넣어주도록 구성되어 있다.
+
+---
+# system1과 system2 모두에 동일하게 설정합니다.
+
+firewall-cmd --permanent --add-service=http
+firewall-cmd --reload
+
+cd /etc/postfix/
+cp main.cf  main.cf.org
+vi main.cf
+
+
+relayhost=[smtp6.example.com]
+# 여긴 s붙고
+inet_interfaces=loopback-only
+mynetworks=127.0.0.0/8 [::1]/128
+# 여기선 s안붙고 ㅎㅎ
+myorigin=desktop6.example.com
+mydestination=
+local_transport=error: nono
+
+systemctl restart postfix
+
+
+
+NFS-Server 구성
+  - example.com 에서만 read 전용 접근할 수 있도록 /public 디렉토리를 export하시오.
+  - example.com 에서만 read/write 접근할 수 있도록 /protected 디렉토리를 export하시오.
+  - /protected는 kerborose 보안을 위한 키탭을 사용합니다.
+  - server keytab 파일은  http://server1.example.com/nfs/server.keytab 에서 제공합니다.
+  - /protected 디렉토리는 lukesh  소유의 secret이라는 이름의 하위 디렉토리를 포함합니다.
+  - lucksh는 /protected/secret에 대하여 반드시 read/write 권한을 가져야 합니다.
+
+---
+(system1)
+
+systemctl start nfs-server nfs-secure-server
+systemctl enable nfs-server nfs-secure-server
+
+firewall-cmd --permanent --add-service=nfs
+firewall-cmd --reload
+
+mkdir /public 
+mkdir -p /protected/secret
+
+chown nfsnobody /public
+
+# user(lukesh) 권한 잊지 말기.
+chown -R lukesh /protected  
+
+vi /etc/exports
+/public     *.example.com(ro)
+/protected *.example.com(rw,sec=krb5p)
+
+exoprtfs -arv
+
+# 인증에 필요한 key download
+wget -O /etc/krb5.keytab http://server1.example.com/nfs/server.keytab 
+
+
+# selinux를 위한 NFS버전 명시
+vi /etc/sysconfig/nfs
+RPCNFSDARGS="-V 4.2"
+
+systemctl restart nfs-server nfs-secure-server
+
+
+
+
+
+NFS-Client 구성
+  - system1.example.com에서 제공하는 NFS 공유을 마운트하도록 system2를 구성하시오.
+  - /public은 /mnt/nfsmount에 반드시 마운트되어야합니다.
+  - /protected는 http://server1.example.com/nfs/client.keytab에 있는 키탭(keytab)을 사용하여 /mnt/nfssecure에 반드시 마운트되어야 합니다.
+  - 파일시스템은 부팅시 자동마운트되어야합니다.
+
+---
+(system2)
+
+yum –y install nfs-utils
+
+systemctl start nfs-secure
+systemctl enable nfs-secure
+
+wget -O /etc/krb5.keytab http://classroom.example.com/pub/keytabs/desktopX.keytab
+
+mkdir /mnt/nfsmount
+mkdir /mnt/nfssecure
+
+# 커버로스 키탭은 sec=krb5p, v4.2를 옵션으로 반드시 포함한다.
+vi /etc/fstab
+....
+system1:/public        /mnt/nfsmount   nfs   defaults                     0  0
+system1:/protected    /mnt/nfssecure   nfs   defaults,v4.2,sec=krb5p  0 0
+
+mount -a
+
+
+
+
+
+
+
+SMB 서비스를 통한 디렉토리 공유
+system1의 SMB를 다음과 같이 구성하시오.
+  - 당신의 SMB 서버는 반드시 STAFF 워크 그룹의 구성원이어야 합니다.
+  - 서비스는 반드시 /common 디렉터리를 공유해야 합니다. 
+공유이름은 반드시 common이어야 합니다.
+  - common 공유는 반드시 example.com 도메인 클라이언트에게만 가능해야 합니다.
+  - common 공유는 반드시 브라우징(Browsable)될 수 있어야 합니다.
+  - 사용자 opie는 필요한 경우 암호 atenorth로 인증하여 그 공유에 대해서 반드시 읽기 권한을 가져야 합니다.
+
+---
+(system1)
+
+yum -y install samba samba-client 
+vim /etc/samba/smb.conf
+
+[global]
+....
+    workgroup = STAFF
+...
+
+[common]                            # 공유 이름
+    comment = public staff          # comment
+    path = /common                  # 경로
+    browseable = yes                 # browsable
+    valid users = opie              # 공유에 접근 가능한 사용자
+
+
+
+mkdir /common
+chown .opie /common
+chmod 775 /common
+semanage fcontext -a -t samba_share_t '/common(/.*)?' 
+restorecon -RFv /common
+
+useradd -S /sbin/nologin opie
+smbpasswd -a opie
+# New SMB password:atenorth
+# Retype new SMB password:atenorth
+# Added user opie.
+
+systemctl start smb nmb
+systemctl enable smb nmb
+firewall-cmd --permanent --add-service=samba
+firewall-cmd --reload
+
+
+
+---
+(system2)
+yum install -y samba-client
+# List 확인
+smbclient -L //system1  -U opie
+# Enter opie`s password:atenorth
+
+        Sharename       Type      Comment
+        ---------       ----      -------
+        common          Disk      public staff
+ ...
+        Workgroup            Master
+        ---------            -------
+        STAFF                SV01
+
+# Login
+system2# smbclient //system1/common -U opie
+
+
+
+
+SAMBA : 다중사용자 SMB 공유 생성
+system1에서 /releases 디렉토리를 다음과 같이 SMB를 통해 공유합니다.
+  - 공유이름 : releases
+  - releases 공유는 오직 example.com 도메인의 클라이언트들만 접근허용되고,
+  - releases 공유는 반드시 Browseable 가능해야 합니다.
+  - gump는 암호 atenorth로 인증하여 공유에 읽기/쓰기 권한으로 접근할수 있어야 합니다.
+  - smb 공유는 gump의 credential을 이용하여 system2.example.com에 있는 /mnt/multi에 지속적으로 마운트되어야 합니다. 
+    이 공유는 hanks사용자의 패스워드 atenorth로 인증하면 임시로 쓰기 권한을 얻을 수 있도록 해야합니다.
+
+---
+(system1)
+
+# id gump
+# uid=1002(gump) gid=1002(gump) groups=1002(gump),2000(sales)
+# id hanks
+# uid=1003(hanks) gid=1003(hanks) groups=1003(hanks),2000(sales)
+# 이를 통해서 2000(sales) 그룹을 사용해야함을 알 수 있다.
+
+mkdir /releases
+chown .gump /releases
+chmod 2775 /releases
+semanage fcontext -a -t samba_share_t '/releases(/.*)?' 
+restorecon -vvFR /releases
+
+vim /etc/samba/smb.conf
+[global]
+....
+    workgroup = STAFF
+....
+[common]
+  comment = public staff        # 이전 문제 환경 그대로 이어서온거라 신경 ㄴㄴ
+  path = /common
+  browseable = yes
+  valid users = opie
+
+[releases]
+  path = /releases
+  hosts allow = .example.com
+  browseable = yes
+  write list = @sales           # sales 그룹만 쓰기 권한 가능
+
+
+systemctl restart smb nmb
+
+smbpasswd -a gump
+# New SMB password:atenorth
+# Retype new SMB password:atenorth
+
+smbpasswd -a hanks
+# New SMB password:atenorth
+# Retype new SMB password:atenorth
+
+
+
+---
+CLIENT 설정(system2)
+yum install -y cifs-utils
+mkdir /mnt/multi
+
+vi /root/smb-multiuser.txt
+username=gump
+password=atenorth
+
+vi /etc/fstab
+# cifs 타입, credentials 오타 확인
+
+//system1/releases /mnt/multi  cifs  credentials=/root/smb-multiuser.txt  0 0
+===========================================
+Test
+cifscreds add system1
+
+
+
+
+iSCSI target 구성
+system1이 iqn.2014-03.com.example:disk1 이라는 이름의 iSCSI 디스크 장치를 제공하도록 다음과 같이 구성하시오.
+  - iSCSI 서비스는 3260번 포트를 사용합니다.
+  - Size=3G, LVM_NAME="storage"를 사용합니다.
+  - 이 target은 system2.example.com에서만 사용 가능합니다.
+
+=solution=========================================    
+# vgs, lvs를 통해서 현재 디스크 공간 있는지 확인해서 남은 공간있으면 logical volume storage를 생성합니다.
+
+yum -y install targetcli
+
+systemctl enable target
+systemctl start target
+
+firewall-cmd --permanent --add-port=3260/tcp
+firewall-cmd --reload
+
+pvcreate /dev/vdb1
+vgcreate test_vg /dev/vdb1
+lvcreate -n storage -L 3G test_vg
+# 생성한 디스크 정보 갱신
+partprobe
+
+
+targetcli
+Warning: Could not load preferences file /root/.targetcli/prefs.bin.
+targetcli shell version 2.1.fb34
+Copyright 2011-2013 by Datera, Inc and others.
+For help on commands, type 'help'.
+
+/> /backstores/block/ create system1.disk1 /dev/test_vg/storage
+
+/> /iscsi create.iqn.2014-03.com.example:disk1 
+
+/> /iscsi/iqn.2014-03.com.example:disk1/tpg1/acls/ create iqn.2014-03.com.example:system2
+
+/> /iscsi/iqn.2014-03.com.example:disk1/tpg1/luns create /backstores/block/system1.disk1
+
+/> /iscsi/iqn.2014-03.com.example:disk1/tpg1/portals create 172.16.3.30
+
+/> ls
+o- / ............................................................................ [...]
+o- backstores ................................................................ [...]
+| o- block ................................................... [Storage Objects: 1]
+| | o- system1.disk1 ......... [/dev/test_vg/storage (3GiB) write-thru activated]
+| o- fileio .................................................. [Storage Objects: 0]
+| o- pscsi ................................................... [Storage Objects: 0]
+| o- ramdisk ................................................. [Storage Objects: 0]
+o- iscsi .............................................................. [Targets: 1]
+| o- iqn.2014-03.com.example:disk1 ........................ [TPGs: 1]
+|   o- tpg1 ................................................ [no-gen-acls, no-auth]
+|     o- acls ............................................................ [ACLs: 1]
+|     | o- iqn.2014-03.com.example:sysetm2 ....................... [Mapped LUNs: 1]
+|     |   o- mapped_lun0 .............................. [lun0 block/sysetm1.disk1 (rw)]
+|     o- luns ............................................................ [LUNs: 1]
+|     | o- lun0 ........................ [block/vm1.disk1 (/dev/iSCSI_vg/disk1_lv)]
+|     o- portals ..................................................... [Portals: 1]
+|       o- 172.16.3.20:3260 .................................................. [OK]
+o- loopback ........................................................... [Targets: 0]
+
+saveconfig
+exit
+
+
+
+iSCSI 개시자 주소
+system1에 있는 iSCSI iqn.2014-03.com.example:disk1 target에 연결할 수 있도록 system2를 구성하시오.
+  - 이 iSCSI 장치는 시스템이 부팅될 때 자동으로 사용됩니다.
+  - 이 iSCSI 블록 장치는 ext4 파일시스템으로 format되어있는 1800MB 파티션을 포함합니다.
+  - 이 파티션은 /mnt/data로 마운트되어야 합니다.
+  - 시스템 부팅시 자동으로 이 디렉토리에 마운트되어야 합니다.
+
+---
+(system2)
+# client(Initiator)에서 최초 iscsi 부팅시는 target ip를 못잡아서 pending 발생한다.
+# = desktop을 poweroff(강제종료)한다.
+# 최초 설정시에만 해당하며 reboot으로 2회차 이상은 확인해야 한다.
+
+yum install -y iscsi-initiator-utils
+vim /etc/iscsi/initiatorname.iscsi
+# 본인이 누군지 광고하는 이름.
+InitiatorName=iqn.2014-03.com.example:system2
+
+systemctl enable iscsi
+systemctl start iscsi
+
+# portal 검색
+iscsiadm -m discovery -t st -p 172.16.3.30
+
+# 로그인
+# 행여나 로그인 이후에 잘못되었다면 iscsid(iscsi와 다르다.) 데몬을 재기동해야한다.
+iscsiadm -m node -T iqn.2014-03.com.example:disk1 -l
+
+# 세션 확인
+iscsiadm -m session -P3 | grep -i attached
+
+# Create a partition
+fdisk /dev/sda
+n -> p -> 1 -> <enter> -> +1800M -> w
+
+# File system
+mkfs.ext4  /dev/sda1
+
+# UUID check
+blkid /dev/sda
+
+# mount point
+mkdir /mnt/data
+
+vi /etc/fstab
+UUID="xxxxxx" /mnt/data   ext4    _netdev  0 0
+
+mount -a
+
+
+
+
+웹 서버 기능 구성
+  - system1에서 사이트 http://system1.example.com을 위한 웹서버를 구성하고 다음 단계를 수행하십시오.
+  - http://server1.example.com/data에서 station.html 을 다운로드 받으시오.
+  - 내려받은 station.html을 index.html로 이름을 변경하시오. 파일의 내용은 절대 변경하시 마십시오.
+  - example.com에 있는 모든 클라이언트들은 웹서버에 반드시 접근할 수 있어야 합니다.
+  - my133.org(172.16.20.0/16) 안에 있는 클라이언트들은 웹서버에 반드시 접근할 수 없어야 합니다.
+
+---
+yum install httpd -y
+
+systemctl start httpd
+systemctl enable httpd
+
+# 문제보고 방화벽 만들어야 하는게 떠오르지 않았다.
+firewall-cmd --permanent --add-rich-rule='rule family=ipv4 service name=http source address=172.16.20.0/16 invert=True accept'
+firewall-cmd --reload
+
+cd /var/www/html
+wget -O index.html http://server1.example.com/data/station.html
+
+
+
+웹 컨텐츠 접근 설정
+system1에 있는 귀하의 웹서버의 DocumentRoot 아래 confidential이라는 이름의 디렉토리를 생성하시오.
+  - http://server1.example.com/data에서 conf.html 을 다운로드 받으시오.
+  - 내려받은 conf.html을 index.html로 이름을 변경하시오.
+  - confidential은 system1에서는 누구나 볼수 있어야 하지만, 다른 장소의 접근은 불가능해야합니다.
+
+---
+mkdir /var/www/html/confidential
+cd /var/www/html/confidential
+wget http://server1.example.com/data/conf.html 
+mv conf.html index.html
+
+cd /etc/httpd/conf.d
+vim confidential.conf
+
+<Directory "/var/www/html/confidential">
+    AllowOverride None
+    Require host system1.example.com
+</Directory>
+
+systectl restart httpd
+
+
+
+보안 웹 서버 구성
+  system1에서 웹서버 http://system1.example.com에 대해 TLS 암호화를 구성하십시오.
+  이 웹서버를 위해서 서명된 인증서는 http://server1.example.com/data/xxx.crt에서 찾을 수 있습니다.  
+  이 인증서와 관련된 키는 http://server1.example.com/data/xxx.key에서 찾을 수 있습니다.  
+  이 인증서를 서명한 인증기관 인증서는 http://server1.example.com/data/yyy.crt에서 찾을 수 있습니다.
+TLS certificate: http://server1.example.com/data/xxx.crt
+TLS private key: http://server1.example.com/data/xxx.key
+TLS CA certificate: http://server1.example.com/data/yyy.crt
+
+---
+yum -y install httpd mod_ssl
+cd /etc/pki/tls/certs
+wget http://server1.example.com/data/yyy.crt
+wget http://server1.example.com/data/xxx.crt
+
+cd /etc/pki/tls/private
+sudo wget http://server1.example.com/data/xxx.key
+chmod 0600 xxx.key
+
+vim /etc/httpd/conf.d/asdf.conf
+<VirtualHost *:443>
+....
+    SSLEngine on
+    SSLCertificateFile /etc/pki/tls/certs/xxx.crt
+    SSLCertificateKeyFile /etc/pki/tls/private/xxx.key
+    SSLCertificateChainFile /etc/pki/tls/certs/yyy.crt
+...
+</VirtualHost>
+
+
+
+동적 웹 컨텐츠
+system1에 있는 귀하의 웹서버에 다른 동적웹컨텐츠를 제공하도록 구성하십시오.
+  - 동적컨텐츠는 alt.example.com 이름의 가상호스트에서 제공합니다.
+  - 가상호스트는 포트 8999에서 리스닝 합니다.
+  - http://server1.example.com/data에서 app1.wsgi를 받아서 귀하의 가상호스트에 적절히 위치하여 동적 웹 컨텐츠를 제공할 수 있게합니다.
+  - 어떤 방식이든 컨텐츠는 수정할 수 없습니다.
+  - http://alt.example.com:8999 로 연결하는 클라이언트는 동적으로 생성되는 웹페이지를 볼 수 있어야 함.
+  - example.com 도메인에 있는 모든 시스템에서 http://alt.example.com:8999 위치에 접근 가능해야 합니다.
+
+---
+yum install -y httpd mod_ssl mod_wsgi
+
+systemctl enable httpd; systemctl start httpd
+firewall-cmd --permanent --add-service=http --add-service=https
+firewall-cmd --reload
+
+mkdir -p /var/www/wsgi # 임의의 디렉터리
+cd /var/www/wsgi
+wget http://server1.example.com/data/app1.wsgi
+
+# 그냥 참고 /var/www(/.*)?, /srv/([^/]*/)?www(/.*)? 이렇게는 기본 룰에 들어가있음.
+# semanage fcontext -a -t httpd_sys_content_t '/var/www/wsgi(/.*)?'
+
+# Context 적용
+restorecon -Rv /var/www/wsgi/
+
+cd /etc/httpd/conf.d
+vim wsgi.conf
+
+<VirtualHost *:8999>
+    ServerName alt.example.com
+    DocumentRoot /var/www/wsgi
+    WSGIScriptAlias / /var/www/wsgi/app1.wsgi
+</VirtualHost>
+
+<Directory /var/www/wsgi>
+   Require all granted
+</Directory>
+
+systemctl restart httpd
+curl -k https://alt.example.com
+
+
+
+가상호스트 구성
+system1에 있는 귀하의 웹서버가 가상호스트 사이트 http://www1.example.com을 포함하도록 확장하시오.
+  - 가상호스트의 DocumentRoot를 /var/www/virtual로 설정하시오.
+  - http://server1.example.com/data에서 www1.html 을 다운로드 받으시오.
+  - 내려받은 www1.html을 index.html로 이름을 변경하시오.
+  - 이 파일을 가상호스트의 DocumentRoot에 두시오.
+  - 사용자 opie가 /var/www/virtual 안에서 반드시 컨텐츠를 생성할 수 있어야 합니다.
+주의! 원래의 웹사이트 http://system1.example.com가 계속 접근 가능해야 합니다.
+ 호스트 이름 www1.example.com에 대한 DNS 정보는 example.com을 위한 네임서버가 이미 제공되고 있습니다.
+
+
+---
+mkdir -p /var/www/virtual
+cd /var/www/virtual
+wget -O index.html http://server1.example.com/data/www1.html 
+# semanage fcontext -a -t httpd_sys_content_t 
+restorecon -Rv /var/www/virtual
+
+cd /etc/httpd/conf.d
+# Daemon Load시에 이름순으로 로드하기에 아래처럼 conf이름을 만든것이다.
+vi 00-default.conf
+
+<VirtualHost *:80>
+    DocumentRoot /var/www/html
+</VirtualHost>
+
+<Directory /var/www/html>
+    Require all granted
+</Directory>
+
+
+vi 01-virtual.conf
+
+<VirtualHost *:80>
+    ServerName www1.example.com
+    ServerAlias www1
+    DocumentRoot /var/www/virtual
+</VirtualHost>
+
+<Directory /var/www/virtual>
+    Require all granted
+</Directory>
+
+
+systemctl restart httpd.service
+curl http://system1.example.com
+curl http://www1.example.com
+
+
+
+
+# 여기서부터 복습
+데이터베이스
+system1 상에 conteacts라는 이름의 mariaDB 데이터베이스를 다음 조건으로 생성하시오.
+  - 데이타베이스는 http://server1.example.com/data/users.mdb 에서 제공하는 데이터베이스 덤프를 반드시 사용해야 한다.
+  - 데이터베이스는 오직 localhost에서만 접근할 수 있어야 한다.
+  - 이 데이타베이스는 root가 아닌 다른 사용자로는 zekla만 질의를 허용합니다. 이 사용자의 암호는 반드시 atenorth 이어야 한다.
+  - root 사용자의 암호는 반드시 atenorth 이어야 하고, 암호를 사용하지 않고 로그인 하는것은 허용되지 않도록 해야한다.
+
+---
+yum install mariadb-server -y
+systemctl start mariadb; systemctl enable mariadb
+firewall-cmd --permanent --add-service=mysql
+firewall-cmd --reload
+
+# localhost에서만 접근 허용
+vim /etc/my.cnf
+skip-networking=1
+
+systemctl restart mariadb.service
+
+# root password 설정
+mysql_secure_installation
+# Enter current password for root (enter for none): <Enter>
+# Set root password? [Y/n]Y
+# New password: atenorth 
+# Re-enter new password: atenorth 
+# Remove anonymous users? [Y/n] Y
+# Disallow root login remotely? [Y/n] Y
+# Remove test database and access to it? [Y/n] Y
+# Reload privilege tables now? [Y/n] Y
+
+mysql -u root -p
+# Enter password: atenorth
+# MariaDB [(none)]> exit
+
+
+# 데이터베이스 덤프 사용
+wget http://server1.example.com/data/users.mdb 
+cat users.mdb		# 파일 내용 확인 후 필요한 데이터베이스 생성
+
+mysql -u root -p
+create database users;
+exit
+
+mysql -u root -p users < users.mdb
+
+mysql -u root -p
+# Enter password: atenorth
+# MariaDB [(none)]> show databases;
+
+계정생성
+MariaDB [(none)]> use mysql;
+MariaDB [mysql]> select host,user,password from user;
+MariaDB [mysql]> CREATE USER zekla@localhost identified by 'atenorth';
+MariaDB [mysql]> GRANT SELECT on users.* to zekla@localhost;
+MariaDB [mysql]> flush privileges;
+
+
+데이타베이스 질의
+system1에 있는 데이타베이스 content를 사용하여 적절한 SQL 질의를 생성하여 다음의 질문에 답을 하십시요.
+  - 암호가 ilauphin인 사람의 이름(first name)은 무엇입니까?
+
+
+
+use mysql;
+show tables;
+describe user;
+select host,user,password from user;
+
+# 문제에서 요구하는 암호로 test계정을 생성한다.
+create user test@'%' identified by 'ilauphin';
+
+# 해당 암호를 가진 user들을 검색해봐야 한다.
+select host,user,password from user where password='*60EE7DE39512023CB89FB0235B02F202A569CF89';
++------+-------+-------------------------------------------+
+| host | user  | password                                  |
++------+-------+-------------------------------------------+
+| %    | test1 | *60EE7DE39512023CB89FB0235B02F202A569CF89 |
+| %    | test  | *60EE7DE39512023CB89FB0235B02F202A569CF89 |
++------+-------+-------------------------------------------+
+
+
+- Martin 이름을 갖고 있는 사람들은 몇명이고 몇명이 cupertino(Location) 안에 있습니까?
+2명
+
+
+
+스크립트 작성 
+다음 내용이 동작하는 스크립트 /root/bar.sh를 system1에 작성하십시오.
+  - /root/bar.sh Python 을 실행할 때 표준출력 Perl을 출력하고
+  - /root/bar.sh Perl 을 실행할 때 표준출력 Python을 출력하고
+  - 스크립트를 인자없이 또는 Phthon 이나 Perl이 아닌 다른 인자로 실행할때 스크립트는 표준에러를 다음과 같이 출력합니다.
+   /root/bar.sh  Python|Perl
+
+---
+vi bar.sh
+
+#!/bin/bash
+if [ $# != 1 ]; then
+    echo "Usage : bar.sh Python|Perl"
+    exit 1
+fi
+if [ $1 == "Python" ]; then
+   echo "Perl"
+   elif [ $1 == "Perl" ]; then
+        echo "Python"
+   else
+        echo "Usage : bar.sh Python|Perl"fi
+fi
+
+# chmod +x bar.sh
+
+
+
+사용자를 추가하는 스크립트 작성
+system1에 /root/makeusers라는 이름의 스크립트를 작성하십시오. 
+이 스크립트는 사용자 이름의 목록을 포함하는 파일이 주어졌을때 목록에 있는 각 사용자 이름에 대한 로컬계정을 system1에 생성합니다. 
+추가로 
+  - 이 스크립트는 사용자 이름의 목록을 포함하는 파일이름을 하나의 인자로 요구해야 합니다.
+  - 인자가 제공되지 않으면, 이 스크립트는 Usage: /root/makeusers userfile 메세지를 반드시 표시해야 하고 적절한 값으로 종료(exit)합니다.
+  - 존재하지 않는 파일을 입력으로 지정할 경우, 이 스크립트는  Input file not found 메세지를 반드시 출력하고 적절한 값으로 종료(exit)해야 합니다.
+  - 사용자 계정들은 /bin/false 로 로그인하는 셸이 되도록 생성되어야 합니다.
+  - 스크립트가 이 계정들에 대한 암호를 설정할 필요는 없습니다.
+  - 귀하의 스크립트를 테스트할 용도로  http://server1.example.com/data/userlist 에 있는 사용자 이름의 목록을 사용해도 됩니다.
+
+---
+vi /root/makeusers
+
+#!/bin/bash
+if [ "$#" -eq "0" ]; then
+    echo "Usage : /root/makeusers userfile"
+    exit 1
+fi
+
+if [ -f $1  ]; then
+    for user in $(cat $1)
+    do
+        useradd -s /bin/false $user
+    done
+else
+    echo "Input file not found"
+    exit 1
+fi
+
+# chmod +x /root/makeusers
