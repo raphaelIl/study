@@ -1,0 +1,5 @@
+[rhel-7-server-rpms]
+name=rhel-7-server-rpms
+baseurl=file://###REPO_PATH###
+enabled=1
+gpgcheck=0

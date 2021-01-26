@@ -1,0 +1,10 @@
+master01.test.cloud
+master02.test.cloud
+master03.test.cloud
+infra01.test.cloud
+infra02.test.cloud
+node01.test.cloud
+node02.test.cloud
+router01.test.cloud
+router02.test.cloud
+logging.test.cloud

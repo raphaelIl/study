@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: etcd
+  namespace: openshift-ansible-service-broker
+  selfLink: /api/v1/namespaces/openshift-ansible-service-broker/persistentvolumeclaims/etcd
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  selector:
+    matchLabels:
+      storage-type: nfs
+      storage-source: etcd-volume
+  volumeName: etcd-volume

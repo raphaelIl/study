@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cassandra-data
+  labels:
+    storage-type: nfs
+    storage-source: cassandra-data
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+  - ReadWriteMany
+  nfs:
+    path: /volumes/cassandra-data
+    server: dns.futuregen.cloud
+  persistentVolumeReclaimPolicy: Retain

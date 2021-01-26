@@ -1,0 +1,31 @@
+$ORIGIN .
+$TTL 86400 ; 1 seconds (for testing only)
+futuregen.cloud IN SOA dns.futuregen.cloud. hostmaster.futuregen.cloud. (
+                   2015051404 ; serial
+                   3H ; refresh 
+                   15 ; retry
+                   1W ; expire
+                   3H ; minimum (10 seconds)
+                   )
+                   NS dns.futuregen.cloud.
+                   A 10.0.0.210 
+$ORIGIN apps.futuregen.cloud.
+$TTL 180        ; 3 minutes
+*             IN      A       10.0.0.203 
+$ORIGIN futuregen.cloud.
+$TTL 180        ; 3 minutes
+paasmaster      IN      A     10.0.0.200 
+$TTL 3600       ; 1 hour
+master01      IN      A       10.0.0.200 
+master02      IN      A       10.0.0.201 
+master03      IN      A       10.0.0.202 
+infra01       IN      A       10.0.0.203 
+infra02       IN      A       10.0.0.204 
+node01        IN      A       10.0.0.206 
+node02        IN      A       10.0.0.207 
+router01      IN      A       10.0.0.208 
+router02      IN      A       10.0.0.209 
+logging       IN      A       10.0.0.205 
+registry      IN      A       10.0.0.210 
+dns           IN      A       10.0.0.210 
+gitlab        IN      A       10.0.0.211 

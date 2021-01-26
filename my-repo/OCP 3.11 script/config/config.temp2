@@ -1,0 +1,22 @@
+version: 0.1
+log:
+  fields:
+    service: registry
+storage:
+    cache:
+        layerinfo: inmemory
+    filesystem:
+        rootdirectory: /volumes
+http:
+  addr: registry.test.cloud:###DD_PORT###
+  headers:
+    X-Content-Type-Options: [nosniff]
+  tls:
+    certificate: ###CERT_PATH###/registry.test.cloud.crt
+    key: ###CERT_PATH###/registry.test.cloud.key
+
+health:
+  storagedriver:
+    enabled: true
+    interval: 60s
+    threshold: 3

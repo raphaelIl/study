@@ -1,0 +1,27 @@
+$ORIGIN 0.0.10.in-addr.arpa.
+$TTL 3600
+@       IN      SOA     dns.futuregen.cloud. hostmaster.futuregen.cloud. (
+                        2001062501 ; serial
+                        60         ; refresh (1 minute)
+                        15         ; retry (15 seconds)
+                        1800       ; expire (30 minutes)
+                        10         ; minimum (10 seconds)
+                        )
+;
+@       IN      NS      dns.futuregen.cloud.
+;
+200     IN      PTR     paasmaster.futuregen.cloud.
+
+200     IN      PTR     master01.futuregen.cloud.
+201     IN      PTR     master02.futuregen.cloud.
+202     IN      PTR     master03.futuregen.cloud.
+203     IN      PTR     infra01.futuregen.cloud.
+204     IN      PTR     infra02.futuregen.cloud.
+206     IN      PTR     node01.futuregen.cloud.
+207     IN      PTR     node02.futuregen.cloud.
+208     IN      PTR     router01.futuregen.cloud.
+209     IN      PTR     router02.futuregen.cloud.
+205     IN      PTR     logging.futuregen.cloud.
+210     IN      PTR     registry.futuregen.cloud.
+210     IN      PTR     dns.futuregen.cloud.
+211     IN      PTR     gitlab.futuregen.cloud.

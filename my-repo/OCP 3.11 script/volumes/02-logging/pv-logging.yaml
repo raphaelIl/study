@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: logging-volume
+  labels:
+    storage-type: nfs
+    storage-source: logging-volume
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+  - ReadWriteMany
+  nfs:
+    path: /volumes/logging-volume
+    server: dns.futuregen.cloud
+  persistentVolumeReclaimPolicy: Retain

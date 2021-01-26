@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: etcd-volume
+  labels:
+    storage-type: nfs
+    storage-source: etcd-volume
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+  - ReadWriteMany
+  nfs:
+    path: /volumes/etcd-volume
+    server: dns.futuregen.cloud
+  persistentVolumeReclaimPolicy: Retain
