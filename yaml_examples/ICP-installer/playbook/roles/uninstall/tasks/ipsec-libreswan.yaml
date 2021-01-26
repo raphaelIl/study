@@ -1,0 +1,51 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Gathering facts of installed libreswan
+  set_fact:
+    libreswan_inst_path: "/etc/ipsec.d/"
+
+- name: Fetching libreswan/ipsec service status
+  service:
+    name: ipsec
+  register: ipsec_service
+
+- block:
+    - name: Stopping libreswan/ipsec service
+      service:
+        name: ipsec
+        state: stopped
+      when: ipsec_service.status.ActiveState == "active"
+
+    - name: Removing libreswan/IPsec configuration files
+      file: path={{ item }} state=absent
+      with_items:
+        - "{{libreswan_inst_path}}ipsec-libreswan.conf"
+
+    - name: Deleting NSS database
+      file:
+        path: "/etc/ipsec.d/{{ item }}"
+        state: absent
+      with_items:
+        - cert9.db
+        - key4.db
+
+    - name: Removing subnets from private policy
+      lineinfile:
+        path: "{{libreswan_inst_path}}/policies/private"
+        line: "{{item}}"
+        state: absent
+      with_items: "{{ ipsec_mesh.subnets }}"
+
+    - name: Removing subnets from clear policy
+      lineinfile:
+        path: "{{libreswan_inst_path}}/policies/clear"
+        line: "{% if item.find('/') == -1 %}{{item}}/32{% else %}{{item}}{% endif %}"
+        state: absent
+      with_items: "{{ ipsec_mesh.exclude_ips }}"
+
+  when: ipsec_service.status.LoadState == "loaded"

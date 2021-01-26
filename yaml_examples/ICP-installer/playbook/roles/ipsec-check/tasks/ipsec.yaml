@@ -1,0 +1,89 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking if IPIP tunneling is enabled
+  fail: msg="network_type should be calico and calico_ipip_enabled should be set to true when IPsec mesh is chosen."
+  when: (network_type != "calico") or (not calico_ipip_enabled|bool)
+  run_once: true
+
+- name: Checking ipsec_mesh mandatory parameters
+  fail: msg="Mandatory parameter 'ipsec_mesh.{{item}}' not configured."
+  when:
+    - item not in ipsec_mesh.keys()
+  with_items: ['subnets']
+  run_once: true
+
+- name: Checking calico_ip_autodetection_method is interface type
+  fail: msg="When ipsec is enabled, calico_ip_autodetection_method must be set to interface type"
+  when: not (calico_ip_autodetection_method | match("interface"))
+  run_once: true
+
+- name: Fetching master node's distribution
+  setup:
+    filter: "ansible_distribution"
+  delegate_to: "{{item}}"
+  delegate_facts: true
+  with_items: "{{ master_nodes[0] }}"
+  run_once: true
+
+- include: "{% if hostvars[groups['master'][0]]['ansible_distribution'] in ['RedHat'] %}libreswan-check.yaml{% else %}strongswan-check.yaml{% endif %}"
+
+- name: Checking if atleast one subnet is provided for IPsec configuration
+  fail: msg="At least one subnet must be provided through 'subnets' config variable when IPsec is enabled."
+  when: ipsec_mesh.subnets | length == 0
+  run_once: true
+
+- name: Getting data and management plane interface(s) details
+  set_fact:
+    ipsec_dp_interface: []
+    ipsec_mp_interface_ip: "{{ ansible_host }}"
+    ipsec_interfaces: "{{ calico_ip_autodetection_method.split('=')[1].split(',') }}"
+
+- name: Checking if specified data plane interface is present
+  set_fact:
+    ipsec_dp_interface: "{{ ipsec_dp_interface + [item.1] }}"
+  with_nested:
+    - "{{ ipsec_interfaces }}"
+    - "{{ ansible_interfaces }}"
+  when:
+    - item.1 | match(item.0)
+    - hostvars[inventory_hostname]['ansible_'~item.1|regex_replace('-','_')]['mtu'] is defined
+    - hostvars[inventory_hostname]['ansible_'~item.1|regex_replace('-','_')]['ipv4'] is defined
+
+- name: Reporting error if specified data plane interface does not present
+  fail: msg="Specified data plane interface(s) '{{ipsec_interfaces}}' does not present on this host."
+  when: ipsec_dp_interface | length == 0
+
+- name: Checking if specified data plane interface IP is part of IPsec subnet configuration
+  set_fact:
+    ipsec_dp_interface_name: "{{ item[0] }}"
+    ipsec_dp_interface_ip: "{{ hostvars[ansible_host]['ansible_'~item[0]|regex_replace('-','_')]['ipv4']['address'] }}"
+  when: hostvars[ansible_host]['ansible_'~item[0]|regex_replace('-','_')]['ipv4']['address'] |  ipaddr(item[1])
+  with_nested:
+    - "{{ ipsec_dp_interface }}"
+    - "{{ ipsec_mesh.subnets }}"
+
+- name: Reporting error if data plane interface IP does not belong to the specified subnets
+  fail: msg="None of the specified data plane interfaces '{{ipsec_interfaces}}' have an IP belonging to any of the specified subnets '{{ipsec_mesh.subnets}}'."
+  when: ipsec_dp_interface_ip is not defined
+
+- name: Updating MTU correction(40 bytes) when IPsec is enabled
+  set_fact:
+    mtu_correction: "{{ mtu_correction | int + 40 }}"
+
+- name: Finding MTU of the data plane interface
+  set_fact: calico_tunnel_interface_mtu={{ hostvars[inventory_hostname]['ansible_'~ipsec_dp_interface_name|regex_replace('-','_')]['mtu'] }} | int
+
+- name: Verifying MTU size when IPsec is enabled
+  fail: msg="Specified data plane interface MTU({{calico_tunnel_mtu}}) should be {{mtu_correction}} less than device({{ipsec_dp_interface_name}}) MTU({{calico_tunnel_interface_mtu}})"
+  when: ( calico_tunnel_mtu | int ) > (( hostvars[ansible_host]['calico_tunnel_interface_mtu'] | int ) - (mtu_correction | int))
+
+- name: Verify if dual nic is configured
+  fail: msg="ICP installation requires separate management plane and data plane when IPsec mesh is chosen."
+  when:
+    - ipsec_mesh.nic_checking is not defined or ipsec_mesh.nic_checking == true
+    - ipsec_mp_interface_ip == ipsec_dp_interface_ip

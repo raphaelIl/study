@@ -1,0 +1,63 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating archive addon namespace
+  shell: |
+    export KUBECONFIG=/etc/cfc/conf/admin.kubeconfig
+    /usr/local/bin/kubectl get namespace {{ item.value.namespace }} || kubectl create namespace {{ item.value.namespace }}
+
+- name: Configuring cloudctl
+  shell: |
+    /usr/local/bin/cloudctl login -n {{ item.value.namespace }} -u {{ default_admin_user }} -p {{ default_admin_password }} -a https://{{ cluster_internal_address }}:{{ router_https_port }} --skip-ssl-validation -c "id-{{ cluster_name }}-account"
+  args:
+    warn: false
+    executable: /bin/bash
+  register: result
+  until: result|succeeded
+  retries: 5
+  delay: 10
+
+- name: Configuring docker
+  shell: |
+    docker login -u {{ default_admin_user }} -p {{ default_admin_password }} {{ cluster_CA_domain }}:8500
+  register: result
+  until: result|succeeded
+  retries: 5
+  delay: 10
+
+- name: Checking lock file
+  stat: path="{{ inventory_dir }}/{{ item.value.path }}.lock"
+  delegate_to: localhost
+  register: ppa_lock
+
+- block:
+    - name: Copying PPA archive
+      copy: src="{{ inventory_dir }}/{{ item.value.path }}" dest="{{ offline_pkg_copy_path }}/{{ item.value.path|basename }}" mode=0644
+
+    - name: Loading image and chart from PPA archive
+      shell: |
+        /usr/local/bin/cloudctl catalog load-archive --archive "{{ offline_pkg_copy_path }}/{{ item.value.path|basename }}" --registry {{ cluster_CA_domain }}:8500 --repo "{{ item.value.repo }}"
+      args:
+        warn: false
+        executable: /bin/bash
+      register: result
+      until: result|succeeded
+      retries: 5
+      delay: 10
+
+    - name: Creating lock file
+      copy: dest="{{ inventory_dir }}/{{ item.value.path }}.lock" content="remove this file is you want re-load the ppa package" mode=0600
+      delegate_to: localhost
+
+    - name: Removing PPA archive
+      file: path="{{ offline_pkg_copy_path }}/{{ item.value.path|basename }}" state=absent
+  when: ppa_lock.stat.exists == false
+
+- include_tasks: install.yaml
+  loop: "{{ item.value.charts|default([]) }}"
+  loop_control:
+    loop_var: chart

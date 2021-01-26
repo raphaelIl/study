@@ -1,0 +1,15 @@
+{% set has_taint= [] %}
+{%- for gname in group_names %}
+  {%- if gname | regex_search('hostgroup-') -%}
+    {%- if not has_taint and gname not in no_taint_group -%}
+      dedicated={{ gname | replace("hostgroup-","") }}:NoSchedule
+      {%- if has_taint.append(True) -%} {%- endif -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endfor -%}
+
+{%- if not has_taint -%}
+{%- if inventory_hostname not in groups['worker'] -%}
+  dedicated=infra:NoSchedule
+{%- endif -%}
+{%- endif -%}

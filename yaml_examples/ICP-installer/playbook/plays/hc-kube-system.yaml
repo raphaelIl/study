@@ -1,0 +1,18 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Namespace kube-system checking
+  hosts: localhost
+  any_errors_fatal: false
+  gather_facts: false
+
+  roles:
+    - common
+    - kubectl-config
+    - hc-pv-list
+    - {role: hc-pod-status, when: namespace is defined, hc_namespaces: "{{ query('vars','namespace') }}"}
+    - {role: hc-pod-status, when: namespace is not defined, hc_namespaces: "{{ ['kube-system', 'istio-system', 'cert-manager'] }}"}

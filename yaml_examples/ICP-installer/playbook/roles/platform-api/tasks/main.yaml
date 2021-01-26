@@ -1,0 +1,34 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating platform namespace
+  shell:
+    cmd: |
+      cat <<EOF | kubectl apply -f -
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: platform
+      EOF
+  args:
+    executable: /bin/bash
+  when: not install_on_openshift
+
+- name: Creating cluster-config-secret
+  shell: |
+    tar zcf /tmp/cluster.tgz -C {{ inventory_dir }} $(cd {{ inventory_dir }} && ls -d cfc-certs cfc-components cfc-keys config.yaml hosts ssh_key 2>/dev/null)
+    kubectl -n kube-system delete secret cluster-config-secret || echo "cluster-config-secret does not exist"
+    kubectl -n kube-system create secret generic cluster-config-secret --from-file=cluster.tgz=/tmp/cluster.tgz
+    rm -f /tmp/cluster.tgz
+  args:
+    warn: false
+    executable: /bin/bash
+  when: not install_on_openshift
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5

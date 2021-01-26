@@ -1,0 +1,26 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking if Installer runs on cluster nodes
+  shell: (ps -ef | grep -v grep | grep -w "/installer/installer.sh") || echo no
+  args:
+    executable: /bin/bash
+  register: installer_out
+
+- block:
+    - name: Getting Docker engine version
+      shell: (dockerd --version 2>/dev/null) | awk -F"[ ,]" '{print $3}' | awk -F'-' '{print $1}'
+      args:
+        executable: /bin/bash
+      register: docker_output
+
+    - name: Validating Docker engine version
+      shell: echo defined
+      register: not_install
+      when: docker_output.stdout != '' and (docker_output.stdout | version_compare('18.03.1', '>=', strict=True))
+
+  when: installer_out.stdout == 'no'

@@ -1,0 +1,29 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Ensuring that the certificate directory exist
+  file: path={{ inventory_dir }}/cfc-certs/router state=directory mode=0700
+
+- name: Getting Router certificates addresses
+  set_fact:
+    router_cert_list:
+      - "IP:127.0.0.1"
+      - "DNS:localhost"
+      - "{% if cluster_external_address|ipaddr %}IP:{{ cluster_external_address }}{% else %}DNS:{{ cluster_external_address }}{% endif %}"
+      - "{% if cluster_internal_address|ipaddr %}IP:{{ cluster_internal_address }}{% else %}DNS:{{ cluster_internal_address }}{% endif %}"
+      - "DNS:{{ cluster_CA_domain }}"
+
+- name: Generating Router certificates
+  shell: |
+    export CERT_DIR={{ inventory_dir }}/cfc-certs/router
+    export ROOT_CA_CRT={{ inventory_dir }}/cfc-certs/root-ca/ca.crt
+    export ROOT_CA_KEY={{ inventory_dir }}/cfc-certs/root-ca/ca.key
+    {{ role_path }}/files/make-router-certs.sh {{ router_cert_list | unique | join(",") }}
+  args:
+    creates: "{{ inventory_dir }}/cfc-certs/router/icp-router.crt"
+    chdir: "{{ inventory_dir }}/cfc-certs/router"
+    executable: /bin/bash

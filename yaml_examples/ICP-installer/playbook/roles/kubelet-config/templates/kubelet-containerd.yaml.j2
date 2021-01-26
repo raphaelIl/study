@@ -1,0 +1,12 @@
+metadata:
+  name: kubelet-container
+image:
+  image: {{ k8s_image }}
+command:
+- sh
+- -c
+- 'cp -f /hyperkube /data/'
+mounts:
+- container_path: /data/
+  host_path: /opt/kubernetes/
+  propagation: 1

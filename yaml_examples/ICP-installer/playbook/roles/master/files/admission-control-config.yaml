@@ -1,0 +1,13 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+kind: AdmissionConfiguration
+apiVersion: apiserver.k8s.io/v1alpha1
+plugins:
+  - name: EventRateLimit
+    path: /etc/cfc/conf/eventconfig.yaml
+  - name: PodNodeSelector
+    path: /etc/cfc/conf/podnodeselector.yaml

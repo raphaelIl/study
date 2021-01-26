@@ -1,0 +1,37 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating chain ICP-NSXT
+  shell: iptables -tnat -N ICP-NSXT || true
+  args:
+    executable: /bin/bash
+
+- name: Checking if chain ICP-NSXT is present
+  shell: iptables -tnat -C POSTROUTING -j ICP-NSXT
+  args:
+    executable: /bin/bash
+  register: result
+  ignore_errors: true
+
+- name: Adding chain ICP-NSXT to POSTROUTING
+  shell: iptables -tnat -A POSTROUTING -j ICP-NSXT
+  args:
+    executable: /bin/bash
+  when: result.rc != 0
+
+- name: Checking rule in ICP-NSXT chain
+  shell: iptables -tnat -C ICP-NSXT ! -s {{ network_cidr }} -d {{ network_cidr }} -j MASQUERADE
+  args:
+    executable: /bin/bash
+  register: result
+  ignore_errors: true
+
+- name: Adding rule to ICP-NSXT chain for hostPort support
+  shell: iptables -tnat -A ICP-NSXT ! -s {{ network_cidr }} -d {{ network_cidr }} -j MASQUERADE
+  args:
+    executable: /bin/bash
+  when: result.rc != 0

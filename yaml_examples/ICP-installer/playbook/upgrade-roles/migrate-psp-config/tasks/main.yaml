@@ -1,0 +1,35 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Creating ibm-unrestricted-psp-users rolebinding
+  shell: |
+    index=0
+    retries=100
+    while true; do
+        sleep 6
+        index=$(( index + 1 ))
+        if [[ $index -eq $retries ]]; then
+            echo "Failed to create default psp rolebinding"
+            exit 1
+        fi
+        kubectl api-versions | grep -w rbac.authorization.k8s.io/v1 \
+        && kubectl apply --force --overwrite=true -f {{ role_path }}/files/migrate-psp.yaml \
+        && break || continue
+    done
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  run_once: true
+
+- name: Removing deprecated default-psp-users clusterrolebinding
+  shell: kubectl delete --force=true --ignore-not-found=true --grace-period=0 --timeout=180s clusterrolebinding default-psp-users; true
+  args:
+    executable: /bin/bash
+
+- name: Removing deprecated privileged-psp-users clusterrolebinding
+  shell: kubectl delete --force=true --ignore-not-found=true --grace-period=0 --timeout=180s clusterrolebinding privileged-psp-users; true
+  args:
+    executable: /bin/bash

@@ -1,0 +1,52 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Getting Etcd CA cert
+  slurp: src=/etc/origin/master/master.etcd-ca.crt
+  register: etcd_ca
+  delegate_to: "{{ master_nodes[0] }}"
+
+- name: Getting Etcd client key
+  slurp: src=/etc/origin/master/master.etcd-client.key
+  register: etcd_client_key
+  delegate_to: "{{ master_nodes[0] }}"
+
+- name: Getting Etcd client cert
+  slurp: src=/etc/origin/master/master.etcd-client.crt
+  register: etcd_client_cert
+  delegate_to: "{{ master_nodes[0] }}"
+
+- name: Deploying etcd ConfigMap and Secret
+  shell:
+    cmd: |
+      cat <<EOF | kubectl apply -f -
+      ---
+      kind: ConfigMap
+      apiVersion: v1
+      metadata:
+        name: "{{ cluster_etcd_config }}"
+        namespace: kube-system
+      data:
+        etcd_endpoints: "{% for node in etcd_nodes %}https://{{ node }}:2379{% if not loop.last %},{% endif %}{% endfor %}"
+        etcd_ca: "/etcd-secrets/etcd-ca"
+        etcd_cert: "/etcd-secrets/etcd-cert"
+        etcd_key: "/etcd-secrets/etcd-key"
+
+      ---
+      apiVersion: v1
+      kind: Secret
+      type: Opaque
+      metadata:
+        name: "{{ cluster_etcd_secret }}"
+        namespace: kube-system
+      data:
+        etcd-key: {{ etcd_client_key['content'] }}
+        etcd-cert: {{ etcd_client_cert['content'] }}
+        etcd-ca: {{ etcd_ca['content'] }}
+      EOF
+  args:
+    executable: /bin/bash

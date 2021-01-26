@@ -1,0 +1,20 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Upgrade kubelet on all nodes
+  hosts: all:!master
+  serial: "{{ rolling_update_kubelet | default(0) }}"
+  force_handlers: True
+  roles:
+    - common
+    - kubectl-config
+    - sysctl
+    - docker-config
+    - {role: icp-registry-pull-hyperkube, when: private_registry_enabled == false and image_repo != "ibmcom" and container_runtime == "docker"}
+    - kubelet-config
+    - cloud-provider
+    - kubelet-bootstrap
+    - kubelet-service

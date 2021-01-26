@@ -1,0 +1,134 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+# Validating for a single node cluster
+- block:
+    - name: Validating CPU cores requirement for single node cluster
+      fail: msg="Total CPU cores should be greater than or equal to 8 for single node cluster and all management service enabled"
+      when: ansible_processor_count * ansible_processor_cores < 8
+    - name: Validating memory requirement for single node cluster
+      fail: msg="Total memory should be greater than or equal to 16 GB for single node cluster and all management service enabled"
+      when: ansible_memtotal_mb < 16 * 1024
+  when:
+    - union_nodes | length == 1
+    - inventory_hostname in union_nodes
+
+# Validating for a multi node cluster
+- block:
+    - name: Validating CPU cores requirement for multi node cluster
+      fail: msg="Total CPU cores should be greater than or equal to {{ item.minCores }} for {{ item.group }} node"
+      when:
+        - inventory_hostname in ((item.group == 'management' and groups[item.group] is not defined) | ternary(groups['master'], groups[item.group]))
+        - ansible_processor_cores * (ansible_processor_count | default(1)) < item.minCores
+      with_items:
+        - {group: 'master', minCores: 2}
+        - {group: 'worker', minCores: 2}
+        - {group: 'proxy', minCores: 1}
+        - {group: 'management', minCores: 4}
+
+    - name: Validating memory requirement for multi node cluster
+      fail: msg="Total memory should be greater than or equal to {{ item.minMem }} GB for {{ item.group }} node"
+      when:
+        - inventory_hostname in ((item.group == 'management' and groups[item.group] is not defined) | ternary(groups['master'], groups[item.group]))
+        - ansible_memtotal_mb < item.minMem * 1024
+      with_items:
+        - {group: 'master', minMem: 4}
+        - {group: 'worker', minMem: 4}
+        - {group: 'proxy', minMem: 4}
+        - {group: 'management', minMem: 8}
+  when: union_nodes | length > 1
+
+# Validating disk space
+- name: Validating / directory disk space
+  shell: |
+    disk=$(df -lh -BG --output=avail / | sed '1d' | grep -oP '\d+')
+    [[ $disk -ge 50 ]] || (echo "/ directory available disk space ${disk}GB, it should be greater than or equal to 50 GB" 1>&2 && exit 1)
+  args:
+    executable: /bin/bash
+
+- name: Validating /var directory disk space on master nodes
+  shell: |
+    disk=$(df -lh -BG --output=avail /var | sed '1d' | grep -oP '\d+')
+    [[ $disk -ge 240 ]] || (echo "/var directory available disk space ${disk}GB, it should be greater than or equal to 240 GB" 1>&2 && exit 1)
+  when: inventory_hostname in master_nodes
+  args:
+    executable: /bin/bash
+
+- name: Validating /var directory disk space on management and vulnerability advisor nodes
+  shell: |
+    disk=$(df -lh -BG --output=avail /var | sed '1d' | grep -oP '\d+')
+    [[ $disk -ge 220 ]] || (echo "/var directory available disk space ${disk}GB, it should be greater than or equal to 220 GB" 1>&2 && exit 1)
+  when: inventory_hostname in (management_nodes | union(va_nodes))
+  args:
+    executable: /bin/bash
+
+- name: Validating /var directory disk space on worker, proxy and custom nodes
+  shell: |
+    disk=$(df -lh -BG --output=avail /var | sed '1d' | grep -oP '\d+')
+    [[ $disk -ge 110 ]] || (echo "/var directory available disk space ${disk}GB, it should be greater than or equal to 110 GB" 1>&2 && exit 1)
+  when: not inventory_hostname in (master_nodes | union(management_nodes) | union(va_nodes))
+  args:
+    executable: /bin/bash
+
+- name: Validating /var/lib/docker directory disk space
+  shell: |
+    [[ -d /var/lib/docker ]] || echo "/var/lib/docker directory does not exist" && exit 0
+    disk=$(df -lh -BG --output=avail /var/lib/docker | sed '1d' | grep -oP '\d+')
+    [[ $disk -ge 100 ]] || (echo "/var/lib/docker directory available disk space ${disk}GB, it should be greater than or equal to 100 GB" 1>&2 && exit 1)
+  args:
+    executable: /bin/bash
+
+- name: Validating /var/lib/etcd directory disk space
+  shell: |
+    [[ -d /var/lib/etcd ]] || echo "/var/lib/etcd directory does not exist" && exit 0
+    disk=$(df -lh -BG --output=avail /var/lib/etcd | sed '1d' | grep -oP '\d+')
+    [[ $disk -ge 10 ]] || (echo "/var/lib/etcd directory available disk space ${disk}GB, it should be greater than or equal to 10 GB" 1>&2 && exit 1)
+  when: inventory_hostname in etcd_nodes
+  args:
+    executable: /bin/bash
+
+- name: Validating /var/lib/icp directory disk space
+  shell: |
+    [[ -d /var/lib/icp ]] || echo "/var/lib/icp directory does not exist" && exit 0
+    disk=$(df -lh -BG --output=avail /var/lib/icp | sed '1d' | grep -oP '\d+')
+    [[ $disk -ge 100 ]] || (echo "/var/lib/icp directory available disk space ${disk}GB, it should be greater than or equal to 100 GB" 1>&2 && exit 1)
+  when: inventory_hostname in (master_nodes | union(management_nodes) | union(va_nodes))
+  args:
+    executable: /bin/bash
+
+- name: Validating /var/lib/mysql directory disk space
+  shell: |
+    [[ -d /var/lib/mysql ]] || echo "/var/lib/mysql directory does not exist" && exit 0
+    disk=$(df -lh -BG --output=avail /var/lib/mysql | sed '1d' | grep -oP '\d+')
+    [[ $disk -ge 10 ]] || (echo "/var/lib/mysql directory available disk space ${disk}GB, it should be greater than or equal to 10 GB" 1>&2 && exit 1)
+  when: inventory_hostname in master_nodes
+  args:
+    executable: /bin/bash
+
+- name: Validating /var/lib/registry directory disk space
+  shell: |
+    [[ -d /var/lib/registry ]] || echo "/var/lib/registry directory does not exist" && exit 0
+    disk=$(df -lh -BG --output=avail /var/lib/registry | sed '1d' | grep -oP '\d+')
+    [[ $disk -ge 10 ]] || (echo "/var/lib/registry directory available disk space ${disk}GB, it should be greater than or equal to 10 GB" 1>&2 && exit 1)
+  when: inventory_hostname in master_nodes
+  args:
+    executable: /bin/bash
+
+- name: Validating /var/lib/kubelet directory disk space
+  shell: |
+    [[ -d /var/lib/kubelet ]] || echo "/var/lib/kubelet directory does not exist" && exit 0
+    disk=$(df -lh -BG --output=avail /var/lib/kubelet | sed '1d' | grep -oP '\d+')
+    [[ $disk -ge 10 ]] || (echo "/var/lib/kubelet directory available disk space ${disk}GB, it should be greater than or equal to 10 GB" 1>&2 && exit 1)
+  args:
+    executable: /bin/bash
+
+- name: Validating /tmp directory disk space
+  shell: |
+    disk=$(df -lh -BG --output=avail /tmp | sed '1d' | grep -oP '\d+')
+    [[ $disk -ge 50 ]] || (echo "/tmp directory available disk space ${disk}GB, it should be greater than or equal to 50 GB" 1>&2 && exit 1)
+  args:
+    executable: /bin/bash

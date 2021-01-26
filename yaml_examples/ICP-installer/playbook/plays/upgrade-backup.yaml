@@ -1,0 +1,49 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+# backup procedure
+- name: Backup on all nodes
+  hosts: all
+  serial: "{{ rolling_update_serial | default(0) }}"
+  tasks:
+    - name: Backup management service files
+      shell: |
+        if [[ ! -d {{ inventory_dir }}/cfc-components.{{ backup_version }} ]]; then
+          mv {{ inventory_dir }}/cfc-components {{ inventory_dir }}/cfc-components.{{ backup_version }}
+        fi
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
+      run_once: true
+
+    - import_role:
+        name: restructure-certs
+      delegate_to: localhost
+      run_once: true
+
+    - name: Ensuring that upgrade backup exist
+      file: path={{ backup_dir }} state=directory mode=0700
+
+    - name: Backup static pods, hyperkube, kubelet.service and kubelet crt&key
+      shell: |
+        if [[ -f {{ item }} ]]; then
+          [[ -f {{ backup_dir }}/$(basename {{ item }}) ]] || cp -f {{ item }} {{ backup_dir }}/
+        elif [[ -d {{ item }} ]]; then
+          [[ -d {{ backup_dir }}/$(basename {{ item }}) ]] || cp -r {{ item }} {{ backup_dir }}/
+        fi
+      args:
+        executable: /bin/bash
+      with_items:
+        - /etc/cfc/pods
+        - /opt/kubernetes/hyperkube
+        - /etc/systemd/system/kubelet.service
+
+    - name: Backup conf files
+      shell: |
+        if [[ ! -d {{ backup_dir }}/conf ]]; then
+          cp -r /etc/cfc/conf {{ backup_dir }}/
+        fi
+      when: inventory_hostname in groups.master

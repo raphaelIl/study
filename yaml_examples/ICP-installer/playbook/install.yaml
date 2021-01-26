@@ -1,0 +1,52 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- import_playbook: all-check.yaml
+
+- import_playbook: plays/all-runtime-engine.yaml
+
+- import_playbook: plays/all-runtime-image.yaml
+
+- import_playbook: plays/cert-creation.yaml
+
+- import_playbook: plays/etcd-master-kubelet.yaml
+
+- import_playbook: plays/etcd-deploy.yaml
+
+- import_playbook: plays/encryption-config.yaml
+
+- import_playbook: plays/master-kubernetes.yaml
+
+- import_playbook: plays/kubectl-config.yaml
+
+- import_playbook: plays/kubernetes-resource-config.yaml
+
+- import_playbook: plays/enable-psp-restricted-policy.yaml
+
+- import_playbook: plays/cert-secret-creation.yaml
+
+- import_playbook: plays/image-manager.yaml
+
+- import_playbook: plays/registry-image-push.yaml
+
+- import_playbook: plays/all-kubelet.yaml
+
+- import_playbook: plays/proxy-vip-manager.yaml
+
+- import_playbook: plays/local-addon.yaml
+
+- import_playbook: plays/environment-isolation.yaml
+
+- import_playbook: plays/all-ipsec.yaml
+
+- import_playbook: plays/post-deploy.yaml
+
+- import_playbook: plays/setup-cli.yaml
+
+- import_playbook: plays/upload-chart.yaml
+
+- import_playbook: archive-addon.yaml

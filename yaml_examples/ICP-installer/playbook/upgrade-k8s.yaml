@@ -1,0 +1,35 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+# Backup for upgrade
+- import_playbook: plays/upgrade-backup.yaml
+
+# Loading images
+- import_playbook: plays/all-runtime-image.yaml
+
+# Upgrade etcd
+- import_playbook: plays/upgrade-etcd.yaml
+
+# Creating encryption
+- import_playbook: plays/encryption-config.yaml
+
+# Upgrade kubernetes on master nodes
+- import_playbook: plays/upgrade-master.yaml
+
+# Config kubectl
+- import_playbook: plays/kubectl-config.yaml
+
+# Creating Kubernetes resources
+- import_playbook: plays/kubernetes-resource-config.yaml
+
+# Creating Kubernetes resources
+- import_playbook: plays/migrate-psp-clusterrolebindings.yaml
+
+# Upgrade image manager
+- import_playbook: plays/upgrade-image-manager.yaml
+
+# Upgrade kubelet on all nodes
+- import_playbook: plays/upgrade-kubelet.yaml

@@ -1,0 +1,30 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Getting data plane interface details
+  set_fact:
+    ipsec_dp_interface: []
+    ipsec_interfaces: "{{ calico_ip_autodetection_method.split('=')[1].split(',') }}"
+
+- name: Checking if specified data plane interface is present
+  set_fact:
+    ipsec_dp_interface: "{{ ipsec_dp_interface + [item.1] }}"
+  with_nested:
+    - "{{ ipsec_interfaces }}"
+    - "{{ ansible_interfaces }}"
+  when:
+    - item.1 | match(item.0)
+    - hostvars[inventory_hostname]['ansible_'~item.1|regex_replace('-','_')]['mtu'] is defined
+    - hostvars[inventory_hostname]['ansible_'~item.1|regex_replace('-','_')]['ipv4'] is defined
+
+- name: Getting specified data plane interface ip
+  set_fact:
+    ipsec_dp_interface_ip: "{{ hostvars[ansible_host]['ansible_'~item[0]|regex_replace('-','_')]['ipv4']['address'] }}"
+  when: hostvars[ansible_host]['ansible_'~item[0]|regex_replace('-','_')]['ipv4']['address'] |  ipaddr(item[1])
+  with_nested:
+    - "{{ ipsec_dp_interface }}"
+    - "{{ ipsec_mesh.subnets }}"

@@ -1,0 +1,44 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- block:
+    - name: Ensuring that directory image registry tmp dir exist
+      file: path={{ image_registry_path }} state=directory mode=0755
+
+    - name: Copying image list
+      copy: src={{ inventory_dir }}/.misc/image-list.txt dest={{ image_registry_path }}/ mode=0644
+
+    - name: Building multiarch images
+      shell: |
+        export NO_PROXY={{ image_repo.split('/')[0] }}
+        rc=0
+        for image in $(cat {{ image_registry_path }}/image-list.txt | sort -u); do
+            /usr/local/bin/manifest-tool push from-args \
+                --platforms linux/amd64,linux/ppc64le,linux/s390x \
+                --template {{ image_repo }}/${image//:/-ARCH:} \
+                --target {{ image_repo }}/$image \
+                --ignore-missing
+            if [[ $? -ne 0 ]]; then
+                echo "Build multiarch image failed for $image"
+                rc=1
+            fi
+        done
+        exit $rc
+      args:
+        warn: false
+        executable: /bin/bash
+      register: result
+      until: result|succeeded
+      retries: 3
+      delay: 5
+
+    - name: Docker logout
+      shell: docker logout {{ image_repo.split('/')[0] }}
+      args:
+        executable: /bin/bash
+  delegate_to: "{{ master_nodes[0] }}"
+  run_once: true

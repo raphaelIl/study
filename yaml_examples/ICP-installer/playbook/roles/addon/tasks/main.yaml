@@ -1,0 +1,14 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- include_tasks: release.yaml key={{ item.key }} value={{ item.value }}
+  when: not (management_services[item.key] is defined and management_services[item.key] == "disabled")
+  loop: "{{ helm_charts|dict2items }}"
+
+- include_tasks: delete-release.yaml key={{ item.key }} value={{ item.value }}
+  when: management_services[item.key] is defined and management_services[item.key] == "disabled"
+  loop: "{{ helm_charts|dict2items }}"

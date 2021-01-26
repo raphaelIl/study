@@ -1,0 +1,21 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Create ICP admin user on Openshift
+  shell:
+    cmd: |
+      kubectl --kubeconfig /etc/origin/master/admin.kubeconfig get user {{ default_admin_user }} || cat <<EOF | kubectl --kubeconfig /etc/origin/master/admin.kubeconfig --validate=false apply -f -
+      apiVersion: user.openshift.io/v1
+      identities: null
+      groups: null
+      kind: User
+      metadata:
+        name: {{ default_admin_user }}
+      EOF
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ master_nodes[0] }}"

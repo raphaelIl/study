@@ -1,0 +1,103 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Removing Kubernetes containers
+  shell: (docker ps -f name=k8s | grep -q k8s) && docker stop $(docker ps -q -f name=k8s); docker rm -f $(docker ps -aq -f name=k8s); true
+  args:
+    executable: /bin/bash
+  when: container_runtime == "docker"
+
+- name: Unmounting Kubernetes volumes
+  shell: |
+    ls /var/lib/kubelet/pods/*/volumes/kubernetes.io~*/* && umount /var/lib/kubelet/pods/*/volumes/kubernetes.io~*/*
+    ls /var/lib/kubelet/pods/*/volume-subpaths/*/*/* && umount /var/lib/kubelet/pods/*/volume-subpaths/*/*/*
+    true
+  args:
+    executable: /bin/bash
+
+- name: k8s cni files to be removed for calico
+  set_fact:
+    network_files:
+      - /etc/cni
+      - /opt/cni
+      - /var/log/calico
+  when: network_type == "calico"
+
+- name: k8s cni files to be removed for nsx-t
+  set_fact:
+    network_files:
+      - /opt/cni/bin/host-local
+      - /opt/cni/bin/portmap
+      - /etc/cni/net.d/09-nsx-t.conflist
+  when: network_type == "nsx-t"
+
+- name: Removing directories and files
+  shell: |
+    rm -rf {{ item }}
+  args:
+    executable: /bin/bash
+  with_items:
+    - /etc/cfc
+    - /opt/ibm/cfc
+    - /var/lib/etcd*
+    - /var/lib/kubelet
+    - /var/lib/elasticsearch
+    - /var/lib/mysql*
+    - /var/log/containers
+    - /var/log/pods
+    - /var/lib/nvidia-docker
+    - /etc/systemd/system/nvidia-dev.service
+    - /opt/kubernetes
+    - /etc/systemd/system/kubelet.service
+    - "/etc/docker/certs.d/{{ cluster_CA_domain }}:8500"
+    - /var/lib/icp
+    - "{{ network_files }}"
+    - "{{ registry_storage_dir }}"
+    - /tmp/image-registry
+    - "{{ backup_dir }}"
+  ignore_errors: true
+
+- name: Cleaning up sub-directory if existing
+  shell: |
+    if [[ -e "{{ item }}" ]]; then
+      rm -rf "{{ item }}"/*/*/*
+    fi
+  args:
+    executable: /bin/bash
+  with_items:
+    - "{{ registry_storage_dir }}"
+    - /etc/cfc
+    - /opt/ibm/cfc
+    - "{{ etcd_data_dir }}"
+    - "{{ etcd_wal_dir }}/wal"
+    - /var/lib/kubelet
+    - /var/lib/mysql
+    - /var/lib/icp
+  ignore_errors: true
+
+- name: Cleaning up cluster vip
+  shell: ip addr del {{ cluster_vip }}/32 dev {{ vip_iface }}; true
+
+- name: Cleaning up proxy vip
+  shell: ip addr del {{ proxy_vip }}/32 dev {{ proxy_vip_iface }}; true
+
+- name: Reloading systemd
+  shell: systemctl daemon-reload; systemctl reset-failed; true
+  args:
+    executable: /bin/bash
+
+- name: Removing Docker volumes
+  shell: docker volume rm $(docker volume ls -q); true
+  args:
+    executable: /bin/bash
+
+- name: Cleaning up /etc/hosts
+  lineinfile:
+    dest: /etc/hosts
+    state: absent
+    regexp: '^.* {{ cluster_CA_domain }}$'
+    unsafe_writes: yes

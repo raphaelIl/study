@@ -1,0 +1,18 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Load ip6tables kernel module
+  shell: modprobe ip6_tables || true
+  args:
+    executable: /bin/bash
+
+- name: Updating iptables policy to always accept package forward
+  shell: iptables -P FORWARD ACCEPT || true
+  args:
+    executable: /bin/bash
+
+- include_tasks: "{{ firewall_type }}-{{ firewall_mode }}.yaml"

@@ -1,0 +1,11 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Generating etcd certificates
+  shell: CERT_DIR={{ inventory_dir }}/cfc-certs/etcd {{ role_path }}/files/make-etcd-cert.sh {{ cluster_CA_domain }} {{ etcd_nodes | join(',') }}
+  args:
+    creates: "{{ inventory_dir }}/cfc-certs/etcd/server.pem"

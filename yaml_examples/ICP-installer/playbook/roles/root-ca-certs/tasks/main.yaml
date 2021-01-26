@@ -1,0 +1,21 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Ensuring that the certificate directory exist
+  file: path={{ inventory_dir }}/cfc-certs/root-ca state=directory mode=0700
+
+- name: Generating Root CA certificates
+  shell: openssl req -newkey rsa:4096 -sha256 -nodes -keyout ca.key -x509 -days 36500 -out ca.crt -subj "/C=US/ST=New York/L=Armonk/O=IBM Cloud Private/CN=www.ibm.com"
+  args:
+    creates: "{{ inventory_dir }}/cfc-certs/root-ca/ca.crt"
+    chdir: "{{ inventory_dir }}/cfc-certs/root-ca"
+    executable: /bin/bash
+
+- name: Converting Root CA key into pkcs1 format
+  shell: openssl rsa -in {{ inventory_dir }}/cfc-certs/root-ca/ca.key -out {{ inventory_dir }}/cfc-certs/root-ca/ca.key.p1
+  args:
+    executable: /bin/bash

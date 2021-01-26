@@ -1,0 +1,1940 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+# IBM Cloud Private version
+version: 3.1.1
+edition: "Enterprise Edition"
+
+# Image repo defination
+image_repo: "{% if install_on_openshift %}docker-registry.default.svc:5000{% else %}{{ cluster_CA_domain }}:8500{% endif %}/ibmcom"
+
+install_on_openshift: false
+skip_host_ip_check: false
+fips_enabled: false
+
+# Set node label and taint
+node_labels:
+  master:
+    - "role=master"
+    - "master=true"
+    - "node-role.kubernetes.io/master=true"
+  proxy:
+    - "proxy=true"
+    - "node-role.kubernetes.io/proxy=true"
+  etcd:
+    - "etcd=true"
+    - "node-role.kubernetes.io/etcd=true"
+  management:
+    - "management=true"
+    - "node-role.kubernetes.io/management=true"
+  va:
+    - "va=true"
+    - "node-role.kubernetes.io/va=true"
+  worker:
+    - "node-role.kubernetes.io/worker=true"
+no_taint_group: []
+
+# Get nodes and number
+etcd_nodes: "{{ groups['etcd'] | default(groups['master']) | default(groups['masters']) }}"
+master_nodes: "{{ groups['master'] | default(groups['masters']) }}"
+proxy_nodes: "{{ groups['proxy'] | default(groups['master']) | default(groups['masters']) }}"
+management_nodes: "{{ groups['management'] | default(groups['master']) | default(groups['masters']) }}"
+va_nodes: "{{ groups['va'] | default([]) }}"
+worker_nodes: "{{ groups['worker'] | default([]) }}"
+etcd_num: "{{ etcd_nodes | length }}"
+master_num: "{{ master_nodes | length }}"
+proxy_num: "{{ proxy_nodes | length }}"
+worker_num: "{{ worker_nodes | length }}"
+management_num: "{{ management_nodes | length }}"
+auth_unique_hosts: "{{ (master_nodes + [cluster_external_address, cluster_internal_address, cluster_CA_domain]) | unique }}"
+va_num: "{% if va_nodes|length < 1 %}0{% else %}{{ (va_nodes|length > 2) | ternary(3, 1) }}{% endif %}"
+
+# Cluster vars
+cluster_internal_address: "{% if master_nodes|length > 1 and cluster_vip != '127.0.1.1' %}{{ cluster_vip }}{% elif master_nodes|length > 1 %}{{ cluster_lb_address }}{% else %}{{ master_nodes[0] }}{% endif %}"
+cluster_external_address: "{% if cluster_lb_address != 'none' %}{{ cluster_lb_address }}{% else %}{{ cluster_internal_address }}{% endif %}"
+kubernetes_apiserver_url: "https://{{ cluster_internal_address }}:{{ kube_apiserver_secure_port }}"
+proxy_internal_address: "{% if proxy_num|int > 1 and proxy_vip != '127.0.1.1' %}{{ proxy_vip }}{% elif proxy_num|int > 1 %}{{ proxy_lb_address }}{% else %}{{ proxy_nodes[0] }}{% endif %}"
+proxy_external_address: "{% if proxy_lb_address != 'none' %}{{ proxy_lb_address }}{% else %}{{ proxy_internal_address }}{% endif %}"
+
+# Etcd url
+cluster_etcd_url: "{% for node in etcd_nodes %}https://{{ node }}:4001{% if not loop.last %},{% endif %}{% endfor %}"
+
+# Etcd data and wal directory
+etcd_data_dir: "/var/lib/etcd"
+etcd_wal_dir: "/var/lib/etcd-wal"
+
+# Audit logging settings
+journal_path: /run/log/journal
+
+# infrastructure services: network and kube-dns
+infra_addon:
+  "{{ network_type }}":
+    namespace: kube-system
+    path: "{{ network_helm_chart_path }}"
+  kube-dns:
+    namespace: kube-system
+    path: /addon/kube-dns-3.1.1.tgz
+
+# infra services that depends network and kube-dns
+infra2_addon:
+  cert-manager:
+    namespace: cert-manager
+    path: /addon/ibm-cert-manager-3.1.1.tgz
+  nvidia-device-plugin:
+    namespace: kube-system
+    path: /addon/nvidia-device-plugin-3.1.1.tgz
+  storage-glusterfs:
+    use_custom_template: true
+    namespace: kube-system
+    path: /addon/ibm-glusterfs-1.2.0.tgz
+
+# Phase 1 addons for common management services such as db
+phase1_addon:
+  mongodb:
+    namespace: kube-system
+    path: /addon/icp-mongodb-3.1.1.tgz
+  mariadb:
+    namespace: kube-system
+    path: /addon/mariadb-3.1.1.tgz
+  metrics-server:
+    namespace: kube-system
+    path: /addon/metrics-server-3.1.1.tgz
+  nginx-ingress:
+    namespace: kube-system
+    path: /addon/nginx-ingress-3.1.1.tgz
+  service-catalog:
+    namespace: kube-system
+    path: /addon/service-catalog-3.1.1.tgz
+  storage-minio:
+    namespace: kube-system
+    path: /addon/ibm-minio-objectstore-1.6.1.tgz
+  platform-api:
+    namespace: kube-system
+    path: /addon/platform-api-3.1.1.tgz
+
+# Phase 2 addons for authentication services
+phase2_addon:
+  auth-idp:
+    namespace: kube-system
+    path: /addon/auth-idp-3.1.1.tgz
+  auth-apikeys:
+    namespace: kube-system
+    path: /addon/auth-apikeys-3.1.1.tgz
+  auth-pap:
+    namespace: kube-system
+    path: /addon/auth-pap-3.1.1.tgz
+  auth-pdp:
+    namespace: kube-system
+    path: /addon/auth-pdp-3.1.1.tgz
+
+#  Phase 3 addons for services rely on authentication services
+phase3_addon:
+  icp-management-ingress:
+    namespace: kube-system
+    path: /addon/icp-management-ingress-3.1.1.tgz
+
+# Phase 4 addon
+phase4_addon:
+  platform-ui:
+    namespace: kube-system
+    path: /addon/platform-ui-3.1.1.tgz
+  catalog-ui:
+    namespace: kube-system
+    path: /addon/icp-catalog-chart-3.1.1.tgz
+  security-onboarding:
+    namespace: kube-system
+    path: /addon/security-onboarding-3.1.1.tgz
+  secret-watcher:
+    namespace: kube-system
+    path: /addon/secret-watcher-3.1.1.tgz
+  heapster:
+    namespace: kube-system
+    path: /addon/heapster-3.1.1.tgz
+  unified-router:
+    namespace: kube-system
+    path: /addon/unified-router-3.1.1.tgz
+  metering:
+    namespace: kube-system
+    path: /addon/metering-3.1.1.tgz
+  monitoring:
+    namespace: kube-system
+    path: /addon/ibm-icpmonitoring-1.3.0.tgz
+  helm-repo:
+    namespace: kube-system
+    path: /addon/helm-repo-3.1.1.tgz
+  mgmt-repo:
+    namespace: kube-system
+    path: /addon/mgmt-repo-3.1.1.tgz
+  istio:
+    namespace: istio-system
+    path: /addon/ibm-istio-1.0.4.tgz
+  helm-api:
+    namespace: kube-system
+    path: /addon/helm-api-3.1.1.tgz
+  custom-metrics-adapter:
+    namespace: kube-system
+    path: /addon/ibm-custom-metrics-adapter-3.1.1.tgz
+  logging:
+    namespace: kube-system
+    path: /addon/ibm-icplogging-2.1.0.tgz
+  image-security-enforcement:
+    namespace: kube-system
+    path: /addon/ibmcloud-image-enforcement-3.1.1.tgz
+  web-terminal:
+    namespace: kube-system
+    path: /addon/web-terminal-3.1.1.tgz
+
+# Phase 5 addon
+phase5_addon:
+  audit-logging:
+    namespace: kube-system
+    path: /addon/audit-logging-3.1.1.tgz
+  vulnerability-advisor:
+    namespace: kube-system
+    path: /addon/vulnerability-advisor-3.1.1.tgz
+  key-management:
+    namespace: kube-system
+    path: /addon/key-management-3.1.1.tgz
+  key-management-hsm:
+    namespace: kube-system
+    path: /addon/key-management-hsm-3.1.1.tgz
+
+# PPA Archive addons
+# archive_addons:
+#   nginx:
+#     namespace: default
+#     repo: local-charts
+#     path: addon/nginx-1.12.2.tgz
+#     charts:
+#       - name: nginx
+#         values:
+#           service:
+#             name: nginx-service
+#
+
+# Calico chart configuration
+calico:
+  calico_config:
+    network_cidr: "{{ network_cidr }}"
+    calico_ipip_enabled: "{{ calico_ipip_enabled|bool }}"
+    calico_tunnel_mtu: "{{ calico_tunnel_mtu }}"
+    calico_ip_autodetection_method: "{{ calico_ip_autodetection_method }}"
+    etcd_config: "{{ cluster_etcd_config }}"
+    etcd_secret: "{{ cluster_etcd_secret }}"
+    calico_networking_backend: "{{ calico_networking_backend | default('bird') }}"
+    ipam_type: "{{ calico_ipam_type | default('calico-ipam') }}"
+    ipam_subnet: "{{ calico_ipam_subnet | default('') }}"
+    cluster_type: "{{ calico_cluster_type | default('k8s,bgp') }}"
+  Node:
+    Tolerations: ""
+    resources:
+      requests:
+        cpu: 250m
+        memory: 100Mi
+  Controller:
+    NodeSelector: ""
+    Tolerations: ""
+    resources:
+      requests:
+        cpu: 250m
+        memory: 100Mi
+  cni:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 50Mi
+  images:
+    node:
+      repository: "{{ image_repo }}/calico-node"
+    cni:
+      repository: "{{ image_repo }}/calico-cni"
+    controller:
+      repository: "{{ image_repo }}/calico-kube-controllers"
+
+# kube-dns chart configuration
+kube-dns:
+  image:
+    repository: "{{ image_repo }}/coredns"
+  clusterDomain: "{{ cluster_domain }}"
+  dnsServiceIP: "{{ cluster_dns }}"
+
+# nvidia device plugin
+nvidia-device-plugin:
+  image:
+    repository: "{{ image_repo }}/nvidia-device-plugin"
+
+# storage-glusterfs chart configuration
+storage-glusterfs:
+  preValidation:
+    image:
+      repository: "{{ image_repo }}/icp-storage-util"
+  storageClass:
+    create: true
+    name: glusterfs
+    isDefault: false
+    volumeType: replicate:3
+    reclaimPolicy: Delete
+    volumeBindingMode: Immediate
+    volumeNamePrefix: icp
+    additionalProvisionerParams: {}
+    allowVolumeExpansion: true
+  gluster:
+    image:
+      repository: "{{ image_repo }}/gluster"
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+  heketi:
+    image:
+      repository: "{{ image_repo }}/heketi"
+    backupDbSecret: heketi-db-backup
+    authSecret: heketi-secret
+    maxInFlightOperations: 20
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+  nodeSelector:
+    key: hostgroup
+    value: glusterfs
+  prometheus:
+    enabled: false
+    path: "/metrics"
+    port: 8080
+  tolerations: []
+  podPriorityClass: system-cluster-critical
+
+# nsx-t Controller chart configuration
+nsx-t:
+  ncp:
+    ingressMode: "{{ nsx_t.ingress_mode | default('hostnetwork') }}"
+    subnetPrefix: "{{ nsx_t.subnet_prefix }}"
+    externalSubnetPrefix: "{{ nsx_t.external_subnet_prefix | default() }}"
+    tier0Router: "{{ nsx_t.tier0_router }}"
+    overlayTZ: "{{ nsx_t.overlay_TZ }}"
+    containerIpBlocks: "{{ nsx_t.container_ip_blocks }}"
+    externalIpPools: "{{ nsx_t.external_ip_pools }}"
+    noSnatIpBlocks: "{{ nsx_t.no_snat_ip_blocks | default() }}"
+    nodeType: "{{ nsx_t.node_type | default() }}"
+    enableSnat: "{{ (nsx_t.enable_snat | default('true')) | bool }}"
+    authSecret: "nsx-secrets"
+
+    resources:
+      requests:
+        cpu: 250m
+        memory: 250Mi
+
+  nodeAgent:
+    ovsBridge: "{{ nsx_t.ovs_bridge | default() }}"
+    ovsUplikPort: "{{ nsx_t.ovs_uplink_port | default() }}"
+    resources:
+      requests:
+        cpu: 250m
+        memory: 250Mi
+
+  calicoCni:
+    repository: "{{ image_repo }}/calico-cni"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 50Mi
+
+  managers:
+    url: "{{ nsx_t.managers }}"
+    user: "{{ nsx_t.manager_user | default() }}"
+    password: "{{ nsx_t.manager_password | default() }}"
+    caVerified: "{% if nsx_t.manager_ca_cert is defined %}True{% else %}False{% endif %}"
+    certBasedAuth: "{% if nsx_t.client_private_key is defined %}True{% else %}False{% endif %}"
+
+  loadBalancer:
+    enabled: "{{ (nsx_t.loadbalancer_enabled | default('false')) | bool }}"
+    defaultIngressClassNsx: "{{ (nsx_t.lb_default_ingressclass_nsx | default('true')) | bool }}"
+    poolAlgorithm: "{{ nsx_t.lb_pool_algorithm | default() }}"
+    serviceSize: "{{ nsx_t.lb_service_size | default() }}"
+    layer4Persistence: "{{ nsx_t.lb_l4_persistence | default() }}"
+    layer7Persistence: "{{ nsx_t.lb_l7_persistence | default() }}"
+    defaultCertProvided: "{% if nsx_t.lb_default_private_key is defined %}True{% else %}False{% endif %}"
+
+  kubeProxy:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 250Mi
+
+  clusterName: "{{ cluster_name }}"
+
+  apparmor:
+    enabled: "{{ (nsx_t.apparmor_enabled | default('true')) | bool }}"
+    profile: "{{ nsx_t.apparmor_profile | default('node-agent-apparmor') }}"
+
+  image:
+    repository: "{{ nsx_t.ncp_image }}"
+    tag: "{{ nsx_t.ncp_image_tag }}"
+
+# Nginx Ingress Controller chart configuration
+nginx-ingress:
+  fips_enabled: "{{ fips_enabled | default(false) }}"
+  ingress:
+    hostPort: "{{ ingress_host_port }}"
+    httpPort: "{{ ingress_http_port }}"
+    httpsPort: "{{ ingress_https_port }}"
+    annotations: "{{ ingress_annotations }}"
+    image:
+      repository: "{{ image_repo }}/nginx-ingress-controller"
+    image_fips:
+      repository: "{{ image_repo }}/nginx-ingress-controller"
+    config:
+      disable-access-log: 'true'
+      keep-alive-requests: '10000'
+      upstream-keepalive-connections: '64'
+    extraArgs:
+      publish-status-address: "{{ proxy_external_address }}"
+      enable-ssl-passthrough: true
+
+  defaultBackend:
+    image:
+      repository: "{{ image_repo }}/defaultbackend"
+
+# Security Helm Charts Configuration
+mariadb:
+  mariadb:
+    hostNetwork: true
+    image:
+      repository: "{{ image_repo}}/mariadb"
+    mariadb_hosts: "{{ master_nodes | join(',') }}"
+    cluster_etcd_url: "{{ cluster_etcd_url }}"
+    no_of_masters: "{{ master_num }}"
+    replicas: "{{ master_num }}"
+    mariadb_password: "{{ mariadb_password }}"
+    storageClassName: "{{ storage_class | default('mariadb-storage') }}"
+    securityContext:
+      privileged: "{{ mariadb_privileged | default('true') }}"
+    resources:
+      limits:
+        memory: 512Mi
+  mariadb_monitor:
+    image:
+      repository: "{{ image_repo}}/mariadb"
+    resources:
+      limits:
+        memory: 256Mi
+  etcd:
+    image:
+      repository: "{{ image_repo}}/etcd"
+
+auth-idp:
+  platform-auth-cert-gen:
+    image:
+      repository: "{{ image_repo }}/icp-cert-gen"
+    tls:
+      cn: "{{ cluster_CA_domain }}"
+  icp_audit:
+    image:
+      repository: "{{ image_repo }}/icp-audit-service"
+  platform_auth:
+    image:
+      repository: "{{ image_repo }}/icp-platform-auth"
+  identity_manager:
+    master_nodes_list: "{{ master_nodes | join(' ') }}"
+    image:
+      repository: "{{ image_repo }}/icp-identity-manager"
+  identity_provider:
+    image:
+      repository: "{{ image_repo }}/icp-identity-provider"
+  init_mariadb:
+    image:
+      repository: "{{ image_repo }}/icp-platform-auth"
+  client_registration:
+    image:
+      repository: "{{ image_repo }}/icp-platform-auth"
+  config:
+    cluster_CA_domain: "{{ cluster_CA_domain }}"
+    default_admin_user: "{{ default_admin_user }}"
+    default_admin_password: "{{ default_admin_password }}"
+    cluster_name: "{{ cluster_name }}"
+    cluster_internal_address: "{{ cluster_internal_address }}"
+    cluster_external_address: "{{ cluster_external_address }}"
+    wlp_client_id: "{{ wlp_client_id }}"
+    wlp_client_secret: "{{ wlp_client_secret }}"
+    auth_unique_hosts: "{{ auth_unique_hosts | join(' ') }}"
+    wlp_client_registration_secret: "{{ wlp_client_registration_secret }}"
+    install_type: "{{ install_type }}"
+    is_openshift_env: "{{ install_on_openshift | default(false) }}"
+    openshift_port: "{{ openshift_port | default('8443') }}"
+    icp_port: "{{ router_https_port | default('8443') }}"
+    fips_enabled: "{{ fips_enabled | default(false) }}"
+
+auth-pap:
+  auth_pap:
+    image:
+      repository: "{{ image_repo }}/iam-policy-administration"
+  icp_audit:
+    image:
+      repository: "{{ image_repo }}/icp-audit-service"
+
+auth-apikeys:
+  auth_apikeys:
+    image:
+      repository: "{{ image_repo }}/iam-token-service"
+
+secret-watcher:
+  secret_watcher:
+    image:
+      repository: "{{ image_repo }}/icp-secret-watcher"
+
+auth-pdp:
+  auth_pdp:
+    image:
+      repository: "{{ image_repo }}/iam-policy-decision"
+  icp_audit:
+    image:
+      repository: "{{ image_repo }}/icp-audit-service"
+  init_auth_service:
+    image:
+      repository: "{{ image_repo }}/icp-platform-auth"
+  init_identity_provider:
+    image:
+      repository: "{{ image_repo }}/icp-platform-auth"
+  init_identity_manager:
+    image:
+      repository: "{{ image_repo }}/icp-platform-auth"
+  init_token_service:
+    image:
+      repository: "{{ image_repo }}/icp-platform-auth"
+  init_pap:
+    image:
+      repository: "{{ image_repo }}/icp-platform-auth"
+
+
+security-onboarding:
+  security_onboarding:
+    image:
+      repository: "{{ image_repo }}/iam-policy-decision"
+  update_secrets:
+    image:
+      repository: "{{ image_repo }}/iam-policy-decision"
+
+icp-management-ingress:
+  fips_enabled: "{{ fips_enabled | default(false) }}"
+  httpPort: "{{ router_http_port }}"
+  httpsPort: "{{ router_https_port }}"
+  image:
+    repository: "{{ image_repo }}/icp-management-ingress"
+  image_fips:
+    repository: "{{ image_repo }}/icp-management-ingress"
+  kubectl:
+    repository: "{{ image_repo }}/kubectl"
+  icp_edition: "Enterprise Edition"
+  cluster_domain: "{{ cluster_domain }}"
+  proxy_external_address: "{{ proxy_external_address }}"
+  cluster_external_address: "{{ cluster_external_address }}"
+  host_headers_check_enabled: false
+  allowed_host_headers: "{{ auth_unique_hosts | join (' ') }} icp-management-ingress"
+  apiserver_secure_port: "{{ openshift_port | default(kube_apiserver_secure_port) }}"
+  tls_secret: router-certs
+
+# Platform-API Controller chart configuration
+platform-api:
+  platformApi:
+    image:
+      repository: "{{ image_repo }}/icp-platform-api"
+    replicaCount: "{{ master_num }}"
+    config:
+      cluster_external_address: "{{ cluster_external_address }}"
+      cluster_secure_port: "{{ router_https_port }}"
+      kube_apiserver_secure_port: "{{ openshift_port | default(kube_apiserver_secure_port) }}"
+      cluster_name: "{{ cluster_name }}"
+      cluster_internal_address: "{{ cluster_internal_address }}"
+      inception_image_name: "{{ image_repo }}/icp-inception:{{ version }}"
+      cluster_CA_domain: "{{ cluster_CA_domain }}"
+      acct_name: "{{ cluster_name }} Account"
+      etcd_config: "{{ cluster_etcd_config }}"
+      etcd_secret: "{{ cluster_etcd_secret }}"
+  platformDeploy:
+    image:
+      repository: "{{ image_repo }}/icp-platform-deploy"
+    replicaCount: "{{ master_num }}"
+    config:
+      enabled: "{{ not install_on_openshift }}"
+  auditService:
+    image:
+      repository: "{{ image_repo }}/icp-audit-service"
+    config:
+      enabled: "{{ not install_on_openshift }}"
+      audit_enabled: "{{ auditlog_enabled }}"
+
+# Web-Terminal chart cs_configuration
+web-terminal:
+  webTerminal:
+    image:
+      repository: "{{ image_repo }}/icp-web-terminal"
+    clusterIP: "{{ cluster_external_address }}"
+    clusterPort: "{{ router_https_port }}"
+    clusterDomain: "{{ cluster_CA_domain }}"
+    replicaCount: 1
+    maxReplicaCount: 5
+    scaleAvgUtilization: 70
+
+
+# Heapster
+heapster:
+  replicas: "{{ master_num }}"
+  image:
+    repository: "{{ image_repo }}/heapster"
+
+# Unified-router
+unified-router:
+  image:
+    repository: "{{ image_repo }}/unified-router"
+
+# Metrics-server
+metrics-server:
+  image:
+    repository: "{{ image_repo }}/metrics-server"
+
+# Metering chart configuration
+metering:
+  external:
+    cluster_ip: "{{ cluster_external_address }}"
+    cluster_port: "{{ router_https_port }}"
+  dm:
+    image:
+      repository: "{{ image_repo }}/metering-data-manager"
+  ui:
+    image:
+      repository: "{{ image_repo }}/metering-ui"
+  reader:
+    image:
+      repository: "{{ image_repo }}/metering-data-manager"
+
+# Platform UI chart configuration
+platform-ui:
+  image:
+    repository: "{{ image_repo }}/icp-platform-ui"
+  ICP_VERSION: "{{ version }}"
+  cluster_name: "{{ cluster_name }}"
+  openshift_port: "{{ openshift_port | default('8443') }}"
+  default_admin_user: "{{ default_admin_user }}"
+  install_on_openshift: "{{ install_on_openshift }}"
+  router_https_port: "{{ router_https_port }}"
+
+# STARTING_ICP_CATALOG
+
+catalog-ui:
+  # Default values for chart2.
+  # This is a YAML-formatted file.
+  # Declare variables to be passed into your templates.
+  replicaCount: "{{ master_num }}"
+  pullPolicy: IfNotPresent
+  meta:
+    namespace: kube-system
+  catalogui:
+    commonname: catalog-ui
+    ingresspath: /catalog/
+    image:
+      name: catalog-ui
+      repository: "{{ image_repo }}/icp-catalog-ui"
+    env:
+      cfcRouterUrl: https://icp-management-ingress:8443
+      catalogApiRouteUrl: https://icp-management-ingress:8443/helm-api
+      wlpredirecturl: http://localhost:3000/auth/liberty/callback
+    service:
+      name: catalog-ui
+      type: NodePort
+      port: 4000
+      targetPort: 4000
+      servicePort: 4000
+    secretKeyRef:
+      clientIdSecretName: platform-oidc-credentials
+      clientIdSecretKey: WLP_CLIENT_ID
+      clientSecretSecretKey: WLP_CLIENT_SECRET
+# END_ICP_CATALOG
+
+# STARTING_HELM_API_CHART
+
+helm-api:
+  helm-cert-gen:
+    image:
+      repository: "{{ image_repo }}/icp-cert-gen"
+  helm-service-onboard:
+    image:
+      repository: "{{ image_repo }}/icp-cert-gen"
+  helmapi:
+    image:
+      repository: "{{ image_repo }}/icp-helm-api"
+    env:
+      NO_PROXY: "{{ [cluster_external_address, cluster_internal_address, cluster_CA_domain, 'mongodb', 'platform-identity-provider', 'platform-identity-management','icp-management-ingress','localhost', '127.0.0.1'] | unique | join(',') }}"
+      PROXY_EXTERNAL_ADDR: "{{ proxy_external_address }}"
+      CLUSTER_INTERNAL_ADDR: "{{ cluster_internal_address }}"
+      CLUSTER_CA_DOMAIN: "{{ cluster_CA_domain }}"
+      HTTP_PROXY: "{{ tiller_http_proxy | default('') }}"
+      HTTPS_PROXY: "{{ tiller_https_proxy | default('') }}"
+      CLUSTER_PORT: "{{ router_https_port | default('8443') }}"
+  rudder:
+    image:
+      repository: "{{ image_repo }}/icp-helm-rudder"
+  cert-gen:
+    image:
+      repository: "{{ image_repo }}/icp-cert-gen"
+  onboard-helmapi:
+    image:
+      repository: "{{ image_repo }}/icp-cert-gen"
+  auditService:
+    image:
+      repository: "{{ image_repo }}/icp-audit-service"
+    config:
+      enabled: "{{ not install_on_openshift }}"
+      audit_enabled: "{{ auditlog_enabled }}"
+
+
+# END_HELM_API_CHART
+
+
+# STARTING_CERT_MANAGER_CHART
+
+cert-manager:
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      operator: Exists
+    - key: CriticalAddonsOnly
+      operator: Exists
+  nodeSelector:
+    master: 'true'
+  image:
+    repository: "{{ image_repo }}/icp-cert-manager-controller"
+  serviceAccount:
+    create: false
+    name: "default"
+  clusterResourceNamespace: "kube-system"
+
+# END_CERT_MANAGER_CHART
+
+# Monitoring chart configuration
+monitoring:
+  mode: managed
+  environment: "{% if install_on_openshift %}openshift{% else %}non-openshift{% endif %}"
+  clusterAddress: "{{ cluster_external_address }}"
+  clusterPort: "{{ router_https_port }}"
+  clusterDomain: "{{ cluster_domain }}"
+  clusterName: "{{ cluster_name }}"
+  prometheus:
+    image:
+      repository: "{{ image_repo }}/prometheus"
+    etcdTarget:
+      enabled: "{{ not install_on_openshift | bool }}"
+      etcdAddress: "{{ etcd_nodes }}"
+      etcdPort: "4001"
+    service:
+      type: ClusterIP
+  alertmanager:
+    image:
+      repository: "{{ image_repo }}/alertmanager"
+    service:
+      type: ClusterIP
+  grafana:
+    image:
+      repository: "{{ image_repo }}/grafana"
+    service:
+      type: ClusterIP
+  kubeStateMetrics:
+    image:
+      repository: "{{ image_repo }}/kube-state-metrics"
+  nodeExporter:
+    image:
+      repository: "{{ image_repo }}/node-exporter"
+    port: "{{ monitoring_nodeexporter_port | default('8445') }}"
+  collectdExporter:
+    image:
+      repository: "{{ image_repo }}/collectd-exporter"
+  configmapReload:
+    image:
+      repository: "{{ image_repo }}/configmap-reload"
+  router:
+    image:
+      repository: "{{ image_repo }}/icp-management-ingress"
+    subjectAlt: "{{ cluster_external_address }}"
+  curl:
+    image:
+      repository: "{{ image_repo }}/curl"
+  elasticsearchExporter:
+    image:
+      repository: "{{ image_repo }}/elasticsearch-exporter"
+  certGen:
+    image:
+      repository: "{{ image_repo }}/icp-cert-gen"
+  init:
+    image:
+      repository: "{{ image_repo }}/icp-initcontainer"
+
+# Custom-metrics-adapter
+custom-metrics-adapter:
+  image:
+    repository: "{{ image_repo }}/k8s-prometheus-adapter"
+  initAdapter:
+    image:
+      repository: "{{ image_repo }}/curl"
+
+# image-security-enforcement
+image-security-enforcement:
+  clusterImagePolicy:
+    - name: "{{ cluster_CA_domain }}:8500/*"
+    - name: "registry.bluemix.net/ibm/*"
+    - name: "docker.io/ppc64le/*"
+    - name: "docker.io/amd64/busybox*"
+    - name: "docker.io/vault:*"
+    - name: "docker.io/consul:*"
+    - name: "docker.io/python:*"
+    - name: "docker.io/centos:*"
+    - name: "docker.io/postgres:*"
+    - name: "docker.io/hybridcloudibm/*"
+    - name: "docker.io/ibmcom/*"
+    - name: "docker.io/db2eventstore/*"
+    - name: "docker.io/icpdashdb/*"
+    - name: "docker.io/store/ibmcorp/*"
+    - name: "docker.io/alpine*"
+    - name: "docker.io/busybox*"
+    - name: "docker.io/dduportal/bats:*"
+    - name: "docker.io/cassandra:*"
+    - name: "docker.io/haproxy:*"
+    - name: "docker.io/hazelcast/hazelcast:*"
+    - name: "docker.io/library/busybox:*"
+    - name: "docker.io/minio/mc:*"
+    - name: "docker.io/minio/minio:*"
+    - name: "docker.io/nginx:*"
+    - name: "docker.io/open-liberty:*"
+    - name: "docker.io/rabbitmq:*"
+    - name: "docker.io/radial/busyboxplus:*"
+    - name: "docker.io/ubuntu*"
+    - name: "docker.io/websphere-liberty:*"
+    - name: "docker.io/wurstmeister/kafka:*"
+    - name: "docker.io/zookeeper:*"
+    - name: "docker.io/ibmcloudcontainers/strongswan:*"
+    - name: "docker.io/opsh2oai/dai-ppc64le:*"
+    - name: "docker.io/redis*"
+    - name: "docker.io/f5networks/k8s-bigip-ctlr:*"
+    - name: "docker.io/rook/rook:*"
+    - name: "docker.io/rook/ceph:*"
+    - name: "docker.io/couchdb:*"
+    - name: "docker.elastic.co/beats/filebeat:*"
+    - name: "docker.io/prom/statsd-exporter:*"
+    - name: "docker.elastic.co/elasticsearch/elasticsearch:*"
+    - name: "docker.elastic.co/kibana/kibana:*"
+    - name: "docker.elastic.co/logstash/logstash:*"
+    - name: "quay.io/k8scsi/csi-attacher:*"
+    - name: "quay.io/k8scsi/driver-registrar:*"
+    - name: "quay.io/k8scsi/nfsplugin:*"
+    - name: "k8s.gcr.io/hyperkube:*"
+    - name: "registry.bluemix.net/armada-master/ibm-worker-recovery:*"
+  clusterCADomain: "{{ cluster_CA_domain }}"
+  replicaCount: "{{ master_num }}"
+  webhook:
+    failurePolicy: Fail
+    namespaceSelector:
+      matchExpressions:
+        - key: icp
+          operator: NotIn
+          values:
+            - system
+  admissionController:
+    image:
+      repository: "{{ image_repo }}/ibmcloud-image-enforcement"
+  kubectl:
+    image:
+      repository: "{{ image_repo }}/kubectl"
+
+# Istio chart configuration
+istio:
+  global:
+    proxy:
+      repository: "{{ image_repo }}/istio-proxyv2"
+    proxy_init:
+      repository: "{{ image_repo }}/istio-proxy_init"
+    kubectl:
+      repository: "{{ image_repo }}/kubectl"
+    imagePullSecrets:
+      - "infra-registry-key"
+  sidecarInjectorWebhook:
+    image:
+      repository: "{{ image_repo }}/istio-sidecar_injector"
+  galley:
+    image:
+      repository: "{{ image_repo }}/istio-galley"
+  mixer:
+    image:
+      repository: "{{ image_repo }}/istio-mixer"
+    prometheusStatsdExporter:
+      repository: "{{ image_repo }}/prom-statsd-exporter"
+  pilot:
+    image:
+      repository: "{{ image_repo }}/istio-pilot"
+  security:
+    image:
+      repository: "{{ image_repo }}/istio-citadel"
+  grafana:
+    enabled: true
+    image:
+      repository: "{{ image_repo }}/istio-grafana"
+  prometheus:
+    image:
+      repository: "{{ image_repo }}/prometheus"
+  servicegraph:
+    enabled: true
+    image:
+      repository: "{{ image_repo }}/istio-servicegraph"
+  tracing:
+    enabled: true
+    jaeger:
+      image:
+        repository: "{{ image_repo }}/jaegertracing-all-in-one"
+      ingress:
+        enabled: true
+        annotations: {
+          kubernetes.io/ingress.class: ibm-icp-management
+        }
+  kiali:
+    enabled: true
+    image:
+      repository: "{{ image_repo }}/kiali"
+    ingress:
+      enabled: true
+      annotations: {
+        kubernetes.io/ingress.class: ibm-icp-management
+      }
+    dashboard:
+      jaegerURL: "https://{{ cluster_external_address }}:{{ router_https_port }}/jaeger"
+
+# START_VULNERABILITY_ADVISOR_CHART
+vulnerability-advisor:
+  clusterIP: "{% if not install_on_openshift %}{{ cluster_internal_address }}{% else %}{{ cluster_CA_domain }}{% endif %}"
+  clusterCADomain: "{{ cluster_CA_domain }}"
+  cluster_external_https_port: "{{ router_https_port }}"
+  disable_reg_crawler: "{{ install_on_openshift | default(false) }}"
+  nodeSelector:
+    va: 'true'
+
+  security:
+    enabled: true
+
+  configParser:
+    image:
+      repository: "{{ image_repo }}/config-parser"
+    resources:
+      requests:
+        cpu: 20m
+        memory: 200Mi
+
+  dispatcher:
+    image:
+      repository: "{{ image_repo }}/notification-dispatcher"
+    resources:
+      requests:
+        cpu: 20m
+        memory: 128Mi
+
+  complianceAnnotator:
+    image:
+      repository: "{{ image_repo }}/compliance-annotator"
+    resources:
+      requests:
+        cpu: 30m
+        memory: 200Mi
+
+  processmaAnnotator:
+    image:
+      repository: "{{ image_repo }}/process-ma-hf"
+    resources:
+      requests:
+        cpu: 30m
+        memory: 256Mi
+
+  mafileAnnotator:
+    image:
+      repository: "{{ image_repo }}/ma-file-annotator"
+    resources:
+      requests:
+        cpu: 30m
+        memory: 256Mi
+
+  passwordAnnotator:
+    image:
+      repository: "{{ image_repo }}/password-annotator"
+    resources:
+      requests:
+        cpu: 20m
+        memory: 128Mi
+
+  rootkitAnnotator:
+    image:
+      repository: "{{ image_repo }}/rootkit-annotator"
+    resources:
+      requests:
+        cpu: 30m
+        memory: 128Mi
+
+  secconfigAnnotator:
+    image:
+      repository: "{{ image_repo }}/secure-config-annotator"
+    resources:
+      requests:
+        cpu: 30m
+        memory: 128Mi
+
+  vulnerabilityAnnotator:
+    image:
+      repository: "{{ image_repo }}/vulnerability-annotator"
+    resources:
+      requests:
+        cpu: 30m
+        memory: 128Mi
+
+  complianceIndexer:
+    image:
+      repository: "{{ image_repo }}/py-generic-indexer"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+
+  secconfigIndexer:
+    image:
+      repository: "{{ image_repo }}/py-generic-indexer"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+
+  rootkitIndexer:
+    image:
+      repository: "{{ image_repo }}/py-generic-indexer"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+
+  cosIndexer:
+    image:
+      repository: "{{ image_repo }}/cos-indexer"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+
+  vulnerabilityIndexer:
+    image:
+      repository: "{{ image_repo }}/py-generic-indexer"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+
+  liveCrawler:
+    enabled: true
+    crawlInterval: 86400
+    image:
+      repository: "{{ image_repo }}/live-crawler"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+
+  registryCrawler:
+    enabled: true
+    image:
+      repository: "{{ image_repo }}/reg-crawler"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+
+  processmaCrawler:
+    crawlInterval: 300
+    enabled: true
+    image:
+      repository: "{{ image_repo }}/live-crawler"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+
+  usncrawler:
+    image:
+      repository: "{{ image_repo }}/usncrawler"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+
+  sasApiserver:
+    image:
+      repository: "{{ image_repo }}/sas-base"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+
+  sasMgmt:
+    image:
+      repository: "{{ image_repo }}/sas-base"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+
+  auditService:
+    image:
+      repository: "{{ image_repo }}/icp-audit-service"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+
+  statsd:
+    image:
+      repository: "{{ image_repo }}/statsd"
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
+
+  minioCleaner:
+    image:
+      repository: "{{ image_repo }}/minio-mc"
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "128Mi"
+
+  minio:
+    replicas: "{{ va_num }}"
+    image:
+      repository: "{{ image_repo }}/minio"
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    persistence:
+      enabled: true
+      size: "20Gi"
+      storageClass: "{{ storage_class | default('minio-storage') }}"
+
+  kafka:
+    replicas: "{{ va_num }}"
+    image:
+      repository: "{{ image_repo }}/kafka"
+    heapSize: "1024m"
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+    persistence:
+      enabled: true
+      size: "5Gi"
+      storageClass: "{{ storage_class | default('kafka-storage') }}"
+    zookeeper:
+      image:
+        repository: "{{ image_repo }}/k8szk"
+      replicas: "{{ va_num }}"
+      minAvailable: "{% if va_num < 3  %}1{% else %}2{% endif %}"
+      resources:
+        requests:
+          cpu: 500m
+          memory: 2Gi
+      heap: "1G"
+      persistence:
+        enabled: true
+        size: "5Gi"
+        storageClass: "{{ storage_class | default('zookeeper-storage') }}"
+# END_VULNERABILITY_ADVISOR_CHART
+
+
+# START_LEGACY_LOGGING
+elasticsearch_storage_dir: /var/lib/icp/logging/elk-data
+elasticsearch_storage_size: 20Gi
+kibana_install: true
+logs_maxage: 1
+metrics_max_age: 1
+# END_LEGACY_LOGGING
+
+# START_LOGGING_CHART
+logging:
+  logstash:
+    heapSize: "512m"
+    memoryLimit: "1024Mi"
+    port: 5044
+    image:
+      repository: "{{ image_repo }}/icp-logstash"
+    probe:
+      image:
+        repository: "{{ image_repo }}/logstash-liveness-probe"
+  filebeat:
+    image:
+      repository: "{{ image_repo }}/icp-filebeat"
+  elasticsearch:
+    name: elasticsearch
+    internalPort: 9300
+    client:
+      restPort: 9200
+      heapSize: "1024m"
+      memoryLimit: "1536Mi"
+    data:
+      replicas: "{{ management_num }}"
+      heapSize: "1536m"
+      memoryLimit: "3072M"
+      storage:
+        size: "{{ elasticsearch_storage_size }}"
+        storageClass: "{{ storage_class | default('logging-storage-datanode') }}"
+        persistent: true
+        useDynamicProvisioning: "{{ install_on_openshift | default(false) }}"
+    master:
+      replicas: "{{ management_num }}"
+      heapSize: "1024m"
+      memoryLimit: "1536Mi"
+    image:
+      repository: "{{ image_repo }}/icp-elasticsearch"
+    pluginImage:
+      repository: "{{ image_repo }}/elasticsearch-plugin-searchguard"
+    pluginInitImage:
+      repository: "{{ image_repo }}/searchguard-init"
+    pkiInitImage:
+      repository: "{{ image_repo }}/logging-pki-init"
+    initImage:
+      repository: "{{ image_repo }}/icp-initcontainer"
+    routerImage:
+      repository: "{{ image_repo }}/icp-management-ingress"
+  kibana:
+    image:
+      repository: "{{ image_repo }}/icp-kibana"
+    routerImage:
+      repository: "{{ image_repo }}/icp-management-ingress"
+    initImage:
+      repository: "{{ image_repo }}/curl"
+    install: "{{ kibana_install | default(true) }}"
+    internal: 5601
+    external: 31601
+  curator:
+    image:
+      repository: "{{ image_repo }}/indices-cleaner"
+    app:
+      count: "{{ logs_maxage }}"
+    monitoring:
+      count: "{{ metrics_max_age }}"
+  security:
+    enabled: true
+    ca:
+      origin: external
+      external:
+        secretName: cluster-ca-cert
+        certFieldName: tls.crt
+        keyFieldName: tls.key
+  general:
+    mode: managed
+    cluster_domain: "{{ cluster_domain }}"
+    environment: "{% if install_on_openshift %}Openshift{% else %}IBMCloudPrivate{% endif %}"
+    ingressPort: "{{ router_https_port }}"
+  nameOverride: elk
+  mode: managed                           # deprecated
+  cluster_domain: "{{ cluster_domain }}"  # deprecated
+# END_LOGGING_CHART
+
+# START_AUDIT_LOGGING_CHART
+audit-logging:
+  config:
+    journal_path: "{{ journal_path | default('/run/log/journal') }}"
+  fluentd:
+    image:
+      repository: "{{ image_repo }}/fluentd"
+# END_AUDIT_LOGGING_CHART
+
+# START_KEY_MANAGEMENT_CHART
+key-management:
+  api:
+    image:
+      repository: "{{ image_repo }}/kms-api"
+  pep:
+    image:
+      repository: "{{ image_repo }}/kms-pep"
+  lifecycle:
+    image:
+      repository: "{{ image_repo }}/kms-lifecycle"
+  auditService:
+    image:
+      repository: "{{ image_repo }}/icp-audit-service"
+  crypto:
+    image:
+      repository: "{{ image_repo }}/kms-crypto"
+  persistence:
+    image:
+      repository: "{{ image_repo }}/kms-persistence"
+  storage:
+    image:
+      repository: "{{ image_repo }}/kms-onboarding"
+# END_KEY_MANAGEMENT_CHART
+
+# START_KEY_MANAGEMENT_HSM_CHART
+key-management-hsm:
+  softhsm:
+    image:
+      repository: "{{ image_repo }}/kms-softhsm"
+  gemalto:
+    image:
+      repository: "{{ image_repo }}/kms-gemaltov6"
+  oss:
+    image:
+      repository: "{{ image_repo }}/kms-oss"
+  storage:
+    image:
+      repository: "{{ image_repo }}/kms-onboarding"
+# END_KEY_MANAGEMENT_HSM_CHART
+
+## You can disable following services if they are not needed:
+#   custom-metrics-adapter
+#   image-security-enforcement
+#   istio
+#   metering
+#   monitoring
+#   service-catalog
+#   storage-minio
+#   storage-glusterfs
+#   vulnerability-advisor
+management_services:
+  istio: disabled
+  vulnerability-advisor: disabled
+  storage-glusterfs: disabled
+  storage-minio: disabled
+  key-management-hsm: disabled
+
+storage_provisioner: "kubernetes.io/no-provisioner"
+
+# Image-manager
+image_manager_service_ip: "{{ service_cluster_ip_range | regex_replace('[^.]*$', '8') }}"
+image_push_num: 5
+
+# Tiller
+tiller_service_ip: "{{ service_cluster_ip_range | regex_replace('[^.]*$', '9') }}"
+tiller_history_max: 5
+tiller_iam_host: platform-identity-management
+tiller_iam_port: 4500
+tiller_default_admin_user: "{{ default_admin_user }}"
+
+# Cluster CA secret
+cluster_ca_secret: cluster-ca-cert
+
+# Cluster Etcd info
+cluster_etcd_config: etcd-config
+cluster_etcd_secret: etcd-secret
+
+# General config
+wait_for_timeout: 600
+skip_pre_check: false
+helm_timeout: 600
+
+# Pull image from private registry
+private_registry_enabled: false
+docker_username: placeholder
+docker_password: placeholder
+
+
+# Network type [ calico, nsx-t ]
+network_type: calico
+network_helm_chart_path: "{{ (network_type == 'calico') | ternary('/addon/calico-3.1.1.tgz', '/addon/nsx-t-container-plugin-3.1.1.tgz') }}"
+
+# Network in IPv4 CIDR format
+network_cidr: 10.1.0.0/16
+
+# DEPRECATED: Access UI external IP Address
+# cluster_access_ip: 0.0.0.0
+
+# External loadbalancer for master nodes
+cluster_lb_address: "{{ cluster_access_ip | default('none') }}"
+
+# DEPRECATED: Access Proxy node external IP Address
+# proxy_access_ip: 0.0.0.0
+
+# External loadbalancer for proxy nodes
+proxy_lb_address: "{{ proxy_access_ip | default('none') }}"
+
+# Calico settings
+calico_ipip_enabled: true
+calico_tunnel_mtu: 1430
+calico_ip_autodetection_method: can-reach={{ groups['master'][0] }}
+calico_strict_validation: true
+calico_exclude_interfaces_regex_list: []
+calico_data_migration: true
+
+# Allow loopback dns server in cluster nodes
+loopback_dns: false
+
+# Install in firewall enabled mode
+firewall_enabled: false
+
+# Configure firewall rules for application ports for given hostgroups
+firewall_open_ports:
+  etcd:
+    - 4001/tcp
+    - 2380/tcp
+  master:
+    - "{{ kube_apiserver_secure_port }}/tcp"
+    - 8500/tcp
+    - 8600/tcp
+    - "{{ router_http_port }}/tcp"
+    - "{{ router_https_port }}/tcp"
+    - 9443/tcp
+    - 4567/tcp
+    - 4567/udp
+    - 4568/tcp
+    - 4444/tcp
+    - 3306/tcp
+  proxy:
+    - "{{ ingress_http_port }}/tcp"
+    - "{{ ingress_https_port }}/tcp"
+  all:
+    - 500/udp
+    - 500/tcp
+    - 4500/udp
+    - 179/tcp
+    - 9091/tcp
+    - 9099/tcp
+    - 10248-10252/tcp
+    - "{{ monitoring_nodeexporter_port | default('8445') }}/tcp"
+
+# Enable Kubernetes audit log
+auditlog_enabled: false
+
+# Kubernetes settings
+service_cluster_ip_range: 10.0.0.1/24
+cluster_domain: cluster.local
+cluster_name: mycluster
+cluster_CA_domain: "{{ cluster_name }}.icp"
+cluster_dns: "{{ service_cluster_ip_range | regex_replace('[^.]*$', '10') }}"
+kubelet_extra_args: []
+kube_apiserver_extra_args: []
+kube_scheduler_extra_args: []
+kube_controller_manager_extra_args: []
+kube_proxy_extra_args: []
+kubelet_extra_args_str: "{{ kubelet_extra_args | join(' ') }}"
+cgroups_per_qos_enabled: false
+kube_apiserver_secure_port: 8001
+
+# Cluster Router settings
+router_http_port: 8080
+router_https_port: 8443
+
+# Nginx Ingress settings
+ingress_host_port: true
+ingress_http_port: 80
+ingress_https_port: 443
+ingress_annotations: {}
+
+# Etcd settings
+etcd_extra_args: []
+
+# Container runtime engine option [docker, containerd], default is docker.
+container_runtime: docker
+
+# ICP install buildin runtime engine automatically
+# ture: install docker or containerd with buildin binary
+# false: don't install docker or containerd
+install_docker: true
+install_containerd: true
+
+# Docker configuration option, more options see
+# https://docs.docker.com/engine/reference/commandline/dockerd/#daemon-configuration-file
+docker_config:
+  log-opts:
+    max-size: "100m"
+    max-file: "10"
+
+# Docker environment setup
+docker_env: []
+
+# Containerd configuration options
+containerd_config:
+
+# Containerd environment setup
+containerd_env: []
+
+# Runtime engine version
+docker_version: 18.03.1
+containerd_version: 1.1.0
+
+# The timeout to start a container by docker-py
+docker_api_timeout: 100
+
+# HA settings
+vip_manager: etcd
+cluster_vip: 127.0.1.1
+vip_iface: eth0
+
+# Proxy settings
+proxy_vip_iface: eth0
+proxy_vip: 127.0.1.1
+
+# Flag to enable ldap with true, disabled by default.
+ldap_enabled: false
+
+# Specify the default admin user and password.
+default_admin_user: admin
+default_admin_password: admin
+
+# MongoDB storage directory
+mongodb_storage_dir: /var/lib/icp/mongodb
+# MariaDB storage directory
+mariadb_storage_dir: /var/lib/mysql
+# Metering storage directory
+metering_storage_dir: /var/lib/icp/metering
+
+# Registry storage directory
+registry_storage_dir: /var/lib/registry
+
+# VA storage directory
+va_kafka_storage_dir: /var/lib/icp/va/kafka
+va_zookeeper_storage_dir: /var/lib/icp/va/zookeeper
+va_minio_storage_dir: /var/lib/icp/va/minio
+
+# Use IP, hostname, fqdn or nodename address as k8s node name
+# Supported values: ['ip', 'hostname', 'fqdn', 'nodename']
+kubelet_nodename: ip
+
+# Cloud provider configuration
+# Supported providers: ['vsphere', 'aws']
+cloud_provider: none
+
+azure:
+  cloud_provider_conf:
+    cloud: ""
+    resourceGroup: ""
+    subscriptionId: ""
+    tenantId: ""
+    useManagedIdentityExtension: ""
+    useInstanceMetadata: ""
+  cloud_provider_controller_conf:
+    aadClientId: ""
+    aadClientSecret: ""
+    cloudProviderBackoff: ""
+    location: ""
+    routeTableName: ""
+    securityGroupName: ""
+    subnetName: ""
+    vnetName: ""
+    vnetResourceGroup: ""
+    cloud: ""
+    resourceGroup: ""
+    subscriptionId: ""
+    tenantId: ""
+    useInstanceMetadata: ""
+
+# vSphere cloud provider configuration
+# If user wants to configure vSphere as cloud provider, vsphere_conf
+# parameters should be configured through config.yaml
+#
+# vsphere_conf:
+#   user: <vCenter username>
+#   password: <password for vCenter user>
+#   server: <vCenter Server IP or FQDN>
+#   port: [vCenter Server Port]
+#   insecure_flag: [set to 1 if vCenter used a self-signed certificate]
+#   datacenter: <datacenter name on which Node VMs are deployed>
+#   datastore: <default datastore to use for provisioning volumes>
+#   working_dir: <vCenter VM folder path in which node VMs are located>
+
+# IPSec mesh Configuration
+# If user wants to configure IPSec mesh, the following parameters
+# should be configured through config.yaml
+ipsec_mesh:
+  # To enable IPsec feature
+  enable: false
+  # List of subnets for which the IPsec should be enabled
+  subnets: []
+  # List of IPs to be excluded from IPsec subnet
+  exclude_ips: []
+  # List of ESP encryption/authentication algorithms to be used
+  cipher_suite: ""
+  # Check if dual NIC/Interface is required or not
+  nic_checking: true
+
+# Environment isolation parameters
+
+restrict_namespace_isolation: [kube-system, default, cert-manager, isito-system, kube-public, platform, services]
+isolated_namespaces: []
+isolated_proxies: []
+
+# NSX-T configuration
+nsxt_ingress_annotation:
+  ncp/ingress-controller: "True"
+# nsx_t:
+#   managers: <hostname>[:<port>]
+#   manager_user: <NSX-Manager user>
+#   manager_password: <NSX-Manager password>
+#   manager_ca_cert: <NSX-Manager password>
+#   client_cert: <NSX-Manager client certificate>
+#   client_private_key: <NSX-Manager client key>
+#   subnet_prefix: 26
+#   external_subnet_prefix: 26
+#   ingress_mode: <hostnetwork or nat>
+#   ncp_package: nsx-ncp-xxxxxxx.tar
+#   ncp_image: registry.local/ob-5667597/nsx-ncp
+#   ncp_image_tag: latest
+#   ovs_uplink_port: < interface name that is configured as an uplink port >
+#   ovs_bridge: < OVS bridge name to configure container interface >
+#   tier0_router: < Name or UUID of the tier0 router >
+#   overlay_TZ: < Name or UUID of the NSX overlay transport zone >
+#   container_ip_blocks: < Name or UUID of the container ip blocks >
+#   external_ip_pools: < Name or UUID of the external ip pools >
+#   no_snat_ip_blocks: < Name or UUID of the container ip blocks >
+#   node_type: < The type of container node > # HOSTVM/BAREMETAL.
+#   enable_snat: true # true/false
+#   loadbalancer_enabled: true #true/false
+#   lb_default_ingressclass_nsx: true #true/false
+#   lb_pool_algorithm: ROUND_ROBIN  # ROUND_ROBIN/LEAST_CONNECTION/IP_HASH/WEIGHTED_ROUND_ROBIN
+#   lb_service_size: SMALL   # SMALL/MEDIUM/LARGE
+#   lb_l4_persistence: < persistence type for ingress traffic through L4 Loadbalancer > # source_ip
+#   lb_l7_persistence: < persistence type for ingress traffic through L7 Loadbalancer > # source_ip/cookie
+#   lb_default_cert: < default certificate for HTTPS load balancing >
+#   lb_default_private_key: < default private key for HTTPS load balancing >
+#   apparmor_enabled: true #true/false
+#   apparmor_profile: < name of the AppArmor profile to be used >
+
+## Istio addons security Settings
+## If user wants to configure Istio addons securty settings
+## parameters should be configured through config.yaml
+istio_addon:
+  grafana:
+    username: admin
+    passphrase: admin
+  kiali:
+    username: admin
+    passphrase: admin
+
+# Backup version
+backup_version: 3.1.0
+
+# Upgrade backup directory
+backup_dir: /var/lib/icp/backup/{{ backup_version }}
+
+# Offline installation
+offline_pkg_copy_path: /tmp
+
+# Patch
+patch_copy_path: /tmp
+
+# Remote tmp
+ansible_remote_tmp: "{{ offline_pkg_copy_path }}"
+
+# VA configurations
+va_crawler_enabled: true
+# true means crawl all cluster nodes
+# false means only crawl worker nodes
+va_crawler_all: true
+
+# Define migrate rules
+# migrate_rules:
+#   - {oldkey: network_cidr, newkey: network.cidr}
+#   - {oldkey: network_type, newkey: network.type}
+
+# Define inventory_dir for ansible 2.5.x
+inventory_dir: /installer/cluster
+
+# START_SERVICE_CATALOG
+
+service-catalog:
+  service_catalog:
+    image:
+      repository: "{{ image_repo }}/service-catalog-service-catalog"
+    apiserver:
+      storage:
+        etcd:
+          useEmbedded: false
+          servers: "{{ cluster_etcd_url }}"
+          secret: "{{ cluster_etcd_secret }}"
+
+# END_SERVICE_CATALOG
+
+# START STORAGE-MINIO
+storage-minio:
+  image:
+    repository: "{{ image_repo }}/minio"
+  mcImage:
+    repository: "{{ image_repo }}/minio-mc"
+  mode: standalone
+  minioAccessSercret: "minio-secret"
+  configPath: "/root/.minio/"
+  mountPath: "/export"
+  replica: 4
+  persistence:
+    enabled: false
+    useDynamicProvisioning: false
+    storageClass: standard
+    accessMode: ReadWriteOnce
+    size: 10Gi
+  service:
+    type: ClusterIP
+    clusterIP: None
+    loadBalancerIP: None
+    port: 9000
+    nodePort: 31311
+  ingress:
+    enabled: false
+    path: /
+    hosts: ""
+    tls: ""
+  tls:
+    enabled: false
+    type: "selfsigned"
+    minioTlsSercret: ""
+  nodeSelector: ""
+  tolerations: ""
+# END STORAGE-MINIO
+
+# STARTING_MONGODB
+
+mongodb:
+  # Specs for the Docker image for the init container that establishes the replica set
+  installImage:
+    repository: "{{ image_repo }}/icp-mongodb-install"
+    pullPolicy: IfNotPresent
+
+  # Specs for the MongoDB image
+  image:
+    repository: "{{ image_repo }}/icp-mongodb"
+    pullPolicy: IfNotPresent
+
+  replicas: "{{ master_num }}"
+
+  persistentVolume:
+    enabled: true
+    storageClass: "{{ storage_class | default('mongodb-storage') }}"
+    accessModes:
+      - ReadWriteOnce
+    size: 20Gi
+
+  auth:
+    enabled: true
+    adminUser: admin
+    adminPassword: icptest
+
+  tls:
+    enabled: true
+    casecret: "{{ cluster_ca_secret }}"
+
+  cert-gen:
+    image:
+      repository: "{{ image_repo }}/icp-cert-gen"
+
+# END_MONGODB
+
+# START_HELM_REPO
+helm-repo:
+  helmrepo:
+    image:
+      repository: "{{ image_repo }}/icp-helm-repo"
+    env:
+      CLUSTER_URL: https://icp-management-ingress:8443
+      CLUSTER_INTERNAL_ADDR: "{{ cluster_internal_address }}"
+      CLUSTER_CA_DOMAIN: "{{ cluster_CA_domain }}"
+      CLUSTER_PORT: "{{ router_https_port | default('8443') }}"
+    storage:
+      capacity: 5Gi
+      hostPath: "/var/lib/icp/helmrepo"
+  helminit:
+    image:
+      repository: "{{ image_repo }}/icp-helm-repo-init"
+  auditService:
+    image:
+      repository: "{{ image_repo }}/icp-audit-service"
+    config:
+      enabled: "{{ not install_on_openshift }}"
+      audit_enabled: "{{ auditlog_enabled }}"
+
+
+# END HELM_REPO
+
+# START_MGMT_REPO
+mgmt-repo:
+  mgmtrepo:
+    image:
+      repository: "{{ image_repo }}/icp-helm-repo"
+    env:
+      CLUSTER_URL: https://icp-management-ingress:8443
+      CLUSTER_INTERNAL_ADDR: "{{ cluster_internal_address }}"
+      CLUSTER_CA_DOMAIN: "{{ cluster_CA_domain }}"
+      CLUSTER_PORT: "{{ router_https_port | default('8443') }}"
+    storage:
+      capacity: 5Gi
+      hostPath: "/var/lib/icp/mgmtrepo"
+  helminit:
+    image:
+      repository: "{{ image_repo }}/icp-helm-repo-init"
+  auditService:
+    image:
+      repository: "{{ image_repo }}/icp-audit-service"
+    config:
+      enabled: "{{ not install_on_openshift }}"
+      audit_enabled: "{{ auditlog_enabled }}"
+
+# END MGMT_REPO
+
+# Rolling upgrade configuration
+rolling_update_kubelet: "{% if (worker_num|int // 5) < 15 %}{{ worker_num|int // 5 + 1 }}{% else %}15{% endif %}"
+
+# helm install, upgrade and rollback extra arguments defination
+helm_args:
+  install:
+    place: holder
+    # # kube-dns chart install extra arguments (example)
+    # kube-dns:
+    #   - --dry-run
+  upgrade:
+    place: holder
+    # # kube-dns chart upgrade extra arguments (example)
+    # kube-dns:
+    #   - --dry-run
+    #   - --set foo=bar
+    logging:
+      - --recreate-pods
+  rollback:
+    place: holder
+    # # kube-dns chart rollback extra arguments (example)
+    # kube-dns:
+    #   - --dry-run
+    logging:
+      - --recreate-pods
+
+# Upgrade chart override values defination
+upgrade_override:
+  # Platform UI chart upgrade override values
+  platform-ui:
+    ICP_VERSION: "{{ version }}"
+  # Auth PAP chart upgrade override values
+  auth-pap:
+    icp_audit:
+      image:
+        repository: "{{ image_repo }}/icp-audit-service"
+  # Catalog UI chart upgrade override values
+  catalog-ui:
+    catalogui:
+      env:
+        platformidentityproviderurl: https://platform-identity-provider:4300
+  # Istio chart upgrade override values
+  istio:
+    global:
+      proxy_init:
+        repository: "{{ image_repo }}/istio-proxy_init"
+    sidecarInjectorWebhook:
+      image:
+        repository: "{{ image_repo }}/istio-sidecar_injector"
+    tracing:
+      jaeger:
+        ingress:
+          enabled: true
+          annotations: {
+            kubernetes.io/ingress.class: ibm-icp-management
+          }
+    kiali:
+      ingress:
+        enabled: true
+        annotations: {
+          kubernetes.io/ingress.class: ibm-icp-management
+        }
+      dashboard:
+        jaegerURL: "https://{{ cluster_external_address }}:{{ router_https_port }}/jaeger"
+  # Platform API chart upgrade override values
+  platform-api:
+    platformApi:
+      replicaCount: "{{ master_num }}"
+    platformDeploy:
+      replicaCount: "{{ master_num }}"
+  metering:
+    external:
+      cluster_ip: "{{ cluster_external_address }}"
+      cluster_port: "{{ router_https_port }}"
+
+  storage-glusterfs:
+    gluster:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+    heketi:
+      maxInFlightOperations: "20"
+  # icp-management-ingress chart upgrade override values
+  icp-management-ingress:
+    fips_enabled: "{{ fips_enabled | default(false) }}"
+    image_fips:
+      repository: "{{ image_repo }}/icp-management-ingress"
+    allowed_host_headers: "{{ auth_unique_hosts | join (' ') }} icp-management-ingress"
+    host_headers_check_enabled: false
+  # nginx-ingress chart upgrade override values
+  nginx-ingress:
+    fips_enabled: "{{ fips_enabled | default(false) }}"
+    ingress:
+      image_fips:
+        repository: "{{ image_repo }}/nginx-ingress-controller"
+
+# Kubernetes images
+etcd_image: "{{ image_repo }}/etcd:3.2.24"
+k8s_image: "{{ image_repo }}/hyperkube:v1.11.3-ee"
+k8s_pause_image: "{{ image_repo }}/pause:3.1"
+
+# KMS plugin image
+kmsplugin_image: "{{ image_repo }}/kmsplugin:3.1.1"
+
+# Image manager images
+image_manager_image: "{{ image_repo }}/icp-image-manager:2.2.4"
+image_registry_image: "{{ image_repo }}/registry:2.6.2.2"
+image_manager_resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+image_registry_resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Bootstrap token
+bootstrap_token_ttl: "24h0m0s"
+
+# Tiller image
+tiller_image: "{{ image_repo }}/tiller:v2.9.1-icp-3.1.1"
+tiller_resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# HA images
+keepalived_image: "{{ image_repo }}/keepalived:1.2.24"
+ucarp_image: "{{ image_repo }}/ucarp:1.5.2"
+vip_manager_image: "{{ image_repo }}/icp-vip-manager:1.1"
+
+pre_pull_all_images:
+  - "{{ k8s_image }}"
+  - "{{ k8s_pause_image }}"
+  - "{{ kmsplugin_image }}"
+
+pre_pull_etcd_images:
+  - "{{ etcd_image }}"
+
+# Health Check
+healthcheck:
+  log_path: "{{ inventory_dir }}/logs/healthcheck/pods"
+  pod_status_file: "pod.status"
+  pod_describe_prefix: "pod.describe"
+  pod_log_prefix: "pod.log"
+  pod_log_max_line: "2000"
+  pod_log_exclude_status: "Completed|Running|Succeeded"
+  log_hardware_path: "{{ inventory_dir }}/logs/healthcheck/system"
+  log_pv_path: "{{ inventory_dir }}/logs/healthcheck/pv"

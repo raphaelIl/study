@@ -1,0 +1,76 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- include: node-delete.yaml
+  delegate_to: localhost
+  when: ansible_play_hosts|length != groups['all']|length
+  ignore_errors: true
+
+- include: nsx-t.yaml
+  delegate_to: localhost
+  when: ansible_play_hosts|length == groups['all']|length and network_type == 'nsx-t'
+  ignore_errors: true
+  run_once: true
+
+- include: pods-delete.yaml
+  when: container_runtime == "containerd"
+
+- name: Stopping Kubelet service
+  shell: systemctl disable kubelet; systemctl stop kubelet; true
+  args:
+    executable: /bin/bash
+
+- name: Stopping nvidia-dev service
+  shell: systemctl disable nvidia-dev; systemctl stop nvidia-dev; true
+  args:
+    executable: /bin/bash
+
+- include: sandbox-delete.yaml
+  when: container_runtime == "containerd"
+
+- include: common.yaml
+
+- include: "iptables-{{ firewall_type }}.yaml"
+  when: firewall_enabled == true
+
+- include: iptables-nsx-t.yaml
+  when: network_type == 'nsx-t' and (inventory_hostname in master_nodes or inventory_hostname in management_nodes)
+
+- name: Flushing iptables rules
+  shell: cat /proc/net/ip_tables_names | xargs -i sh -c "iptables -t {} -F; iptables -t {} -X; iptables -t {} -Z"; true
+  args:
+    executable: /bin/bash
+  when: firewall_enabled != true
+
+- name: Clear ipvs rules
+  shell: ipvsadm -C; ip link delete kube-ipvs0; ip link delete dummy0; true
+  args:
+    executable: /bin/bash
+  when: ("--proxy-mode=ipvs" in kube_proxy_extra_args)
+
+- name: Checking if Installer runs on cluster nodes
+  shell: (ps -ef | grep -v grep | grep -w "/installer/installer.sh") || echo no
+  args:
+    executable: /bin/bash
+  register: installer_out
+
+- name: Restarting Docker engine on cluster nodes
+  service: name=docker state=restarted
+  when: installer_out.stdout == 'no' and container_runtime == "docker"
+
+- name: Restarting Containerd on cluster nodes
+  service: name=containerd state=restarted
+  when: installer_out.stdout == 'no' and container_runtime == "containerd"
+
+- include: "{% if ansible_distribution in ['RedHat'] %}ipsec-libreswan.yaml{% else %}ipsec-strongswan.yaml{% endif %}"
+  when: (ipsec_mesh.enable|bool)
+
+- include: localfile-delete.yaml
+  delegate_to: localhost
+  when: ansible_play_hosts|length == groups['all']|length
+  ignore_errors: true
+  run_once: true

@@ -1,0 +1,18 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: pv-recycler
+  namespace: kube-system
+spec:
+  restartPolicy: Never
+  containers:
+    - name: pv-recycler
+      image: "{{ k8s_image }}"
+      imagePullPolicy: IfNotPresent
+      command: ["/bin/bash"]
+      args: ["-c", "test -e /scrub && rm -rf /scrub/..?* /scrub/.[!.]* /scrub/*  && test -z \"$(ls -A /scrub)\" || exit 1"]
+      volumeMounts:
+      - mountPath: "/scrub"
+        name: vol
+  volumes:
+    - name: vol

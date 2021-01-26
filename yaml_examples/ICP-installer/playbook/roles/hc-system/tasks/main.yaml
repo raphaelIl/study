@@ -1,0 +1,114 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: host name
+  shell: hostname
+  register: hc_hostname
+
+# os cpu disk kernel
+- name: prepare log file
+  shell: |
+    echo -e "" > /tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_hardware}}
+    echo -e "" > /tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_docker}}
+    echo -e "" > /tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_kubelet}}
+
+- name: os version
+  shell: |
+    _mylogfile=/tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_hardware}}
+    echo "##### uname -a #####" >> ${_mylogfile}
+    uname -a >> ${_mylogfile}
+
+- name: os release
+  shell: |
+    _mylogfile=/tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_hardware}}
+    echo "##### /etc/os-release #####" >> ${_mylogfile}
+    cat /etc/os-release >> ${_mylogfile}
+
+- name: cpu
+  shell: |
+    _mylogfile=/tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_hardware}}
+    echo "##### /proc/cpuinfo #####" >> ${_mylogfile}
+    cat /proc/cpuinfo >> ${_mylogfile}
+
+- name: memory
+  shell: |
+    _mylogfile=/tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_hardware}}
+    echo "##### /proc/meminfo #####" >> ${_mylogfile}
+    cat /proc/meminfo >> ${_mylogfile}
+
+- name: disk space
+  shell: |
+    _mylogfile=/tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_hardware}}
+    echo "##### df -ah #####" >> ${_mylogfile}
+    df -ah >> ${_mylogfile}
+
+- name: disk io
+  shell: |
+    _mylogfile=/tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_hardware}}
+    echo "##### disk io #####" >> ${_mylogfile}
+    dd bs=1M count=200 if=/dev/zero of=test.dd conv=fsync 2>> ${_mylogfile}
+    rm -f test.dd
+
+- name: dmesg output
+  shell: |
+    _mylogfile=/tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_hardware}}
+    echo "##### dmesg output #####" >> ${_mylogfile}
+    dmesg | tail -{{healthcheck.pod_log_max_line}} >> ${_mylogfile}
+
+- name: copy hardware log file
+  fetch:
+    src=/tmp/{{hc_hostname.stdout}}_{{inventory_hostname}}_{{ext_hardware}}
+    dest={{healthcheck.log_hardware_path}}/
+    flat=yes
+
+# docker log
+- name: docker info
+  shell: |
+    _mylogfile=/tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_docker}}
+    echo "##### docker info #####" >> ${_mylogfile}
+    docker info >> ${_mylogfile}
+
+- name: docker disk io
+  shell: |
+    _mylogfile=/tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_docker}}
+    echo "##### disk io of docker storage #####" >> ${_mylogfile}
+    _used_time=`docker run -e LICENSE=accept --rm $(docker images "*/*/icp-inception:latest" -q) time -p dd bs=1M count=200 if=/dev/zero of=test.dd conv=fsync 2>&1 | grep real | awk '{print $2}'`
+    _write_speed=`awk 'BEGIN{printf "%.2f\n",210/'$_used_time'}'`
+    echo "200+0 records in" >> ${_mylogfile}
+    echo "200+0 records out" >> ${_mylogfile}
+    echo "209715200 bytes (210 MB, 200 MiB) copied, ${_used_time} s, ${_write_speed} MB/s" >> ${_mylogfile}
+
+- name: docker status
+  shell: |
+    _mylogfile=/tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_docker}}
+    echo "##### docker status #####" >> ${_mylogfile}
+    systemctl status docker --lines={{healthcheck.pod_log_max_line}} >> ${_mylogfile}
+
+- name: copy docker log file
+  fetch:
+    src=/tmp/{{hc_hostname.stdout}}_{{inventory_hostname}}_{{ext_docker}}
+    dest={{healthcheck.log_hardware_path}}/
+    flat=yes
+
+# kubelet log
+- name: kubelet status
+  shell: |
+    _mylogfile=/tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_kubelet}}
+    echo "##### kubelet status #####" >> ${_mylogfile}
+    systemctl status kubelet --lines={{healthcheck.pod_log_max_line}} >> ${_mylogfile}
+
+- name: kubelet log
+  shell: |
+    _mylogfile=/tmp/${HOSTNAME}_{{inventory_hostname}}_{{ext_kubelet}}
+    echo "##### kubelet log #####" >> ${_mylogfile}
+    journalctl --lines={{healthcheck.pod_log_max_line}} -u kubelet.service >> ${_mylogfile}
+
+- name: copy kubelet log file
+  fetch:
+    src=/tmp/{{hc_hostname.stdout}}_{{inventory_hostname}}_{{ext_kubelet}}
+    dest={{healthcheck.log_hardware_path}}/
+    flat=yes

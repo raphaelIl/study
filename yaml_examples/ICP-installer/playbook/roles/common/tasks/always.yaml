@@ -1,0 +1,31 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Setting cloud provider flags
+  set_fact:
+    cloud_provider_conf: "{% if cloud_provider in ['vsphere', 'azure'] %}/etc/cfc/conf/{{ cloud_provider }}_cloud_conf{% endif %}"
+
+- name: Setting MariaDB info
+  set_fact: mariadb_password="{{ default_mariadb_password | default((cluster_internal_address+'mariadb') | hash('md5')) }}"
+
+- name: Setting WLP Client ID
+  set_fact: wlp_client_id="{{ (cluster_internal_address+'id') | hash('md5') }}"
+
+- name: Setting WLP Client Secret
+  set_fact: wlp_client_secret="{{ (cluster_internal_address+'secret') | hash('md5') }}"
+
+- name: Setting WLP OAuth2 Client Registration Password
+  set_fact: wlp_client_registration_secret="{{ (cluster_internal_address+'wlp_client_registration_password') | hash('md5') }}"
+
+- name: Setting nginix ingress controller to come on pod network for nsx-t
+  set_fact:
+    ingress_host_port: "False"
+    ingress_annotations: "{{ ingress_annotations | combine( nsxt_ingress_annotation ) }}"
+  when:
+    - network_type == 'nsx-t'
+    - nsx_t.ingress_mode is defined and nsx_t.ingress_mode == 'nat'
+  run_once: true

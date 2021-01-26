@@ -1,0 +1,22 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- import_playbook: all-check.yaml
+
+- import_playbook: plays/all-runtime-engine.yaml
+
+- import_playbook: plays/kubectl-config.yaml
+
+- import_playbook: plays/all-runtime-image.yaml
+
+- import_playbook: plays/registry-image-push.yaml
+
+- import_playbook: plays/all-kubelet.yaml
+
+- import_playbook: plays/proxy-vip-manager.yaml
+
+- import_playbook: plays/all-ipsec.yaml

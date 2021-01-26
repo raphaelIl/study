@@ -1,0 +1,52 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Checking docker engine
+  shell: dockerd --version &>/dev/null && echo true || echo false
+  args:
+    executable: /bin/bash
+  register: docker_exist
+
+- fail: msg="Docker is not installed, you can setup variable install_docker as true in config.yaml or manual install docker."
+  when:
+    - not install_docker
+    - not (docker_exist.stdout|bool)
+
+- block:
+    - name: Getting Docker engine packages
+      shell: ls {{ inventory_dir }}/runtime-engine/{{ docker_package_name }} /runtime-engine/{{ docker_package_name }} | tail -1; true
+      register: docker_pgk_path
+      delegate_to: localhost
+
+    - name: Copying docker package
+      copy: src={{ docker_pgk_path.stdout }} dest=/tmp mode=0755
+
+    - name: Installing docker engine
+      shell: |
+        bash /tmp/{{ docker_package_name }} --install \
+        --docker_env "{{ docker_env | join(' ') }}" \
+        --docker_config '{{ docker_config | to_nice_json }}'
+      args:
+        executable: /bin/bash
+
+    - name: Cleaning up docker packages
+      file: path="/tmp/{{ docker_package_name }}" state=absent
+  when:
+    - install_docker
+    - not (docker_exist.stdout|bool)
+
+- block:
+    - name: Checking docker mount flags
+      shell: systemctl cat docker.service | grep 'MountFlags=slave' &>/dev/null && echo true || echo false
+      args:
+        executable: /bin/bash
+      register: docker_mountflag
+
+    - fail: msg="The docker engine mount flags was not shared, please update the docker engine MountFlags to shared."
+      when:
+        - (docker_mountflag.stdout|bool)
+  when:
+    - (docker_exist.stdout|bool)

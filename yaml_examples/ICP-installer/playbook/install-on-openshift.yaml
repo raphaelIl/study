@@ -1,0 +1,89 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Precheck for install on OpenShift
+  hosts: localhost
+  max_fail_percentage: 0
+  any_errors_fatal: true
+  gather_facts: false
+  tasks:
+    - name: Validating storage_class
+      fail: msg="Cannot find storage_class definition in config.yaml, setup storage_class in config.yaml and then reinstall."
+      when: (storage_class is undefined) or (storage_class|trim == '')
+
+- name: Installing on OpenShift
+  hosts: localhost
+  max_fail_percentage: 0
+  any_errors_fatal: true
+  gather_facts: false
+
+  roles:
+    - common
+    - kubectl-config
+    - openshift-labels
+    - openshift-scc
+    - rbac-config
+    - root-ca-certs
+    - root-ca-certs-secrets
+    - router-certs
+    - router-certs-secrets
+    - helm-certs
+    - helm-certs-secrets
+    - openshift-etcd-secrets
+    - openshift-admin-user
+    - openshift-teamadmin-rbac
+    - {role: private-registry-pull-secret, when: private_registry_enabled}
+    - {role: icp-image-list, when: private_registry_enabled == false and image_repo != "ibmcom"}
+    - {role: openshift-registry-pull-secret, when: private_registry_enabled == false and image_repo != "ibmcom"}
+    - {role: openshift-registry-image, when: private_registry_enabled == false and image_repo != "ibmcom"}
+    - tiller
+    - helm-config
+    - {role: chart-repo, when: chart_repo is defined, repos: "{{chart_repo }}"}
+    - {role: addon, helm_charts: {"cert-manager": "{{ infra2_addon['cert-manager'] }}"}}
+    - cert-manager
+    - {role: addon, helm_charts: {"mongodb": "{{ phase1_addon['mongodb'] }}"}}
+    - {role: addon, helm_charts: {"mariadb": "{{ phase1_addon['mariadb'] }}"}}
+    - {role: addon, helm_charts: {"metrics-server": "{{ phase1_addon['metrics-server'] }}"}}
+    - {role: addon, helm_charts: {"nginx-ingress": "{{ phase1_addon['nginx-ingress'] }}"}}
+    - {role: waitfor, res_name: mongodb}
+    - {role: waitfor, res_name: mariadb}
+    - auth-ldaps-cert-secret
+    - {role: addon, when: phase2_addon is defined, helm_charts: "{{ phase2_addon }}"}
+    - {role: addon, helm_charts: {"icp-management-ingress": "{{ phase3_addon['icp-management-ingress'] }}"}}
+    - {role: addon, helm_charts: {"platform-ui": "{{ phase4_addon['platform-ui'] }}"}}
+    - {role: addon, helm_charts: {"catalog-ui": "{{ phase4_addon['catalog-ui'] }}"}}
+    - {role: addon, helm_charts: {"platform-api": "{{ phase1_addon['platform-api'] }}"}}
+    - {role: addon, helm_charts: {"heapster": "{{ phase4_addon['heapster'] }}"}}
+    - {role: addon, helm_charts: {"unified-router": "{{ phase4_addon['unified-router'] }}"}}
+    - {role: addon, helm_charts: {"custom-metrics-adapter": "{{ phase4_addon['custom-metrics-adapter'] }}"}}
+    - {role: addon, helm_charts: {"metering": "{{ phase4_addon['metering'] }}"}}
+    - {role: addon, helm_charts: {"logging": "{{ phase4_addon['logging'] }}"}}
+    - {role: addon, helm_charts: {"monitoring": "{{ phase4_addon['monitoring'] }}"}}
+    - {role: addon, helm_charts: {"helm-api": "{{ phase4_addon['helm-api'] }}"}}
+    - {role: addon, helm_charts: {"helm-repo": "{{ phase4_addon['helm-repo'] }}"}}
+    - {role: addon, helm_charts: {"mgmt-repo": "{{ phase4_addon['mgmt-repo'] }}"}}
+
+- name: Downloading client binaries on masters
+  hosts: masters
+  ignore_errors: true
+
+  roles:
+    - setup-cli
+
+- name: Post install
+  hosts: localhost
+  gather_facts: false
+  ignore_errors: true
+
+  tasks:
+    - name: Showing post install message
+      shell: echo hello world
+      vars:
+        dashboard_host: "{{ cluster_external_address }}"
+        dashboard_port: "{{ router_https_port }}"
+        dashboard_user: "{{ default_admin_user }}"
+        dashboard_pass: "{{ default_admin_password }}"

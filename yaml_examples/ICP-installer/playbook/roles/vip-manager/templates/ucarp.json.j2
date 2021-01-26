@@ -1,0 +1,48 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "k8s-{{ vip_node_type }}-ucarp",
+    "namespace": "kube-system",
+    "annotations": {
+      "scheduler.alpha.kubernetes.io/critical-pod": ""
+    }
+  },
+  "spec":{
+    "hostNetwork": true,
+    "containers":[
+      {
+        "command": [
+          "ucarp",
+          "--interface={{ vip_interface }}",
+          "--srcip={{ inventory_hostname }}",
+          "--vhid={{ vip_address.split('.') | last }}",
+          "--pass={{ vip_address }}",
+          "--addr={{ vip_address }}",
+          "--upscript=/etc/vip-up.sh",
+          "--downscript=/etc/vip-down.sh"
+        ],
+        "image": "{{ ucarp_image }}",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "ucarp",
+        "securityContext": {
+            "privileged": true
+        },
+        "volumeMounts": [
+            {
+                "mountPath": "/dev/net",
+                "name": "net"
+            }
+        ]
+      }
+    ],
+    "volumes": [
+      {
+        "hostPath": {
+          "path": "/dev/net"
+        },
+        "name": "net"
+      }
+    ]
+  }
+}

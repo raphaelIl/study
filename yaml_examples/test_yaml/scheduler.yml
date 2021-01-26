@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: annotation-default-scheduler
+  labels:
+    name: multischeduler
+  annotations:
+    scheduleBy: custom-scheduler
+spec:
+  schedulerName: custom-scheduler
+  containers:
+  - name: pod
+    image: k8s.gcr.io/pause:2.0

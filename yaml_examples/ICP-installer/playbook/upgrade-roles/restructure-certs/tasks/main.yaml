@@ -1,0 +1,50 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating backup directory
+  file: path="{{ inventory_dir }}/backup/3.1.0" state=directory mode=0700
+
+- name: Backup certificates
+  shell: |
+    STATUS=0
+    if ! [[ -d "{{ inventory_dir }}/backup/3.1.0/cfc-certs" ]]; then
+        mv {{ inventory_dir }}/cfc-certs {{ inventory_dir }}/backup/3.1.0/cfc-certs
+        ((STATUS+$?))
+    fi
+    if ! [[ -d "{{ inventory_dir }}/backup/3.1.0/cfc-keys" ]]; then
+        mv {{ inventory_dir }}/cfc-keys {{ inventory_dir }}/backup/3.1.0/cfc-keys
+        ((STATUS+$?))
+    fi
+    exit $STATUS
+  args:
+    executable: /bin/bash
+
+- name: Restructure certificates
+  shell: |
+    mkdir -p cfc-certs/{etcd,front,helm,image-registry,ipsec,kubernetes,root-ca,router}
+    cp backup/3.1.0/cfc-certs/etcd/* cfc-certs/etcd/
+    cp backup/3.1.0/cfc-keys/etcd/* cfc-certs/etcd/
+
+    cp backup/3.1.0/cfc-certs/front/* cfc-certs/front/
+    cp backup/3.1.0/cfc-keys/front/* cfc-certs/front/
+
+    cp backup/3.1.0/cfc-certs/helm/* cfc-certs/helm/
+
+    cp backup/3.1.0/cfc-certs/icp-registry.* cfc-certs/image-registry/
+
+    cp backup/3.1.0/cfc-certs/ipsec-mesh.* cfc-certs/ipsec/
+
+    cp backup/3.1.0/cfc-certs/kube* cfc-certs/kubernetes/
+    cp backup/3.1.0/cfc-certs/server.* cfc-certs/kubernetes/
+
+    cp backup/3.1.0/cfc-keys/ca.* cfc-certs/root-ca/
+
+    cp backup/3.1.0/cfc-certs/icp-router.* cfc-certs/router/
+  args:
+    chdir: "{{ inventory_dir }}"
+    executable: /bin/bash
+    warn: false

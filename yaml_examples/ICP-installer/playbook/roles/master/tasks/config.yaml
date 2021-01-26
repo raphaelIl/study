@@ -1,0 +1,67 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Copying ca certificate files to /etc/cfc/conf directory
+  copy: src={{ inventory_dir }}/cfc-certs/root-ca/{{ item }} dest=/etc/cfc/conf/{{ item }} mode=0600
+  with_items:
+    - ca.crt
+    - ca.key
+
+- name: Copying certificate files to /etc/cfc/conf directory
+  copy: src={{ inventory_dir }}/cfc-certs/kubernetes/{{ item }} dest=/etc/cfc/conf/{{ item }} mode=0600
+  with_items:
+    - server.cert
+    - server.key
+    - kubelet-client.crt
+    - kubelet-client.key
+    - kube-scheduler.crt
+    - kube-scheduler.key
+    - kube-controller-manager.crt
+    - kube-controller-manager.key
+
+- name: Creating front-proxy directory
+  file: path=/etc/cfc/conf/front state=directory mode=0700
+
+- name: Copying front-proxy certificate
+  copy: src={{ inventory_dir }}/cfc-certs/front/{{ item }} dest=/etc/cfc/conf/front/{{ item }} mode=0600
+  loop:
+    - front-proxy-ca.pem
+    - front-proxy-ca-key.pem
+    - front-proxy-client.pem
+    - front-proxy-client-key.pem
+    - front-proxy-server.pem
+    - front-proxy-server-key.pem
+
+- name: Ensuring that Kubernetes configuration file for Kubernetes controller manager exist
+  template: src=conf/kube-controller-manager-config.yaml.j2 dest=/etc/cfc/conf/kube-controller-manager-config.yaml mode=0600
+
+- name: Ensuring that Kubernetes configuration file for Kubernetes scheduler exist
+  template: src=conf/kube-scheduler-config.yaml.j2 dest=/etc/cfc/conf/kube-scheduler-config.yaml mode=0600
+
+- name: Ensuring that Kubernetes policy configuration file for Kubernetes scheduler exist
+  template: src=conf/scheduler-policy-config.json.j2 dest=/etc/cfc/conf/scheduler-policy-config.json mode=0600
+
+- name: Ensuring that Kubernetes audit log policy file for Kubernetes apiserver exist
+  template: src=conf/audit-policy.yaml.j2 dest=/etc/cfc/conf/audit-policy.yaml mode=0600
+
+- name: Ensuring that pod spec of PV recycler exist
+  template: src=conf/recycler.yaml.j2 dest=/etc/cfc/conf/recycler.yaml mode=0600
+
+- name: Ensuring that Kubernetes encryption config file for Kubernetes api server exist
+  copy: src={{ inventory_dir }}/cfc-components/encryption-config.yaml dest=/etc/cfc/conf/encryption-config.yaml mode=0600
+
+- name: Ensuring that Kubernetes adminssion config file for Kubernetes api server exist
+  template: src=files/admission-control-config.yaml dest=/etc/cfc/conf/admission-control-config.yaml mode=0600
+
+- name: Ensuring that Kubernetes event config file for Kubernetes api server exist
+  template: src=files/eventconfig.yaml dest=/etc/cfc/conf/eventconfig.yaml mode=0600
+
+- name: Ensuring that Kubernetes podnodeselector config file for Kubernetes api server exist
+  template: src=conf/podnodeselector.yaml.j2 dest=/etc/cfc/conf/podnodeselector.yaml mode=0600
+
+- name: Ensuring that KMS encryption config file exists
+  template: src=conf/kmsplugin-config.yaml.j2 dest=/etc/cfc/conf/kmsplugin-config.yaml mode=0600

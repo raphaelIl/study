@@ -1,0 +1,38 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking the patch directory
+  stat: path={{ patch_src_dir }}
+  delegate_to: localhost
+  register: path
+
+- name: Getting the patch files
+  shell: ls {{ patch_src_dir }}
+  delegate_to: localhost
+  register: patch_list
+  when: path.stat.exists
+
+- block:
+    - name: Creating remote patch directory
+      file: path={{ patch_dest_dir }} state=directory mode=0755
+
+    - name: Copying patch files to remote
+      copy: src={{ patch_src_dir }}/{{ item }} dest={{ patch_dest_dir }}/{{ item }} mode=0755
+      with_items:
+        - "{{ patch_list.stdout_lines }}"
+
+    - name: Rollback patch files
+      shell: |
+        export ICP_UNPATCH=true
+        {{ patch_dest_dir }}/{{ item }}
+      with_items:
+        - "{{ patch_list.stdout_lines }}"
+
+    - name: Deleting patch files
+      file: path={{ patch_dest_dir }} state=absent
+
+  when: path.stat.exists and patch_list.stdout

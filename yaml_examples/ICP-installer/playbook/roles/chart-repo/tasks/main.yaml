@@ -1,0 +1,25 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Add Helm Chart Repository
+  shell: |
+    echo "Downloading charts from {{ item.value.url }}"
+    curl '-#' -fL -H "{{ item.value.header }}" -o addons.tgz "{{ item.value.url }}"
+    tar xzf addons.tgz
+    rm -f addons.tgz
+    # nohup helm serve --repo-path /addon &>/tmp/helm-serve-addon &
+    # helm init -c --skip-refresh
+    # helm repo add addon "http://127.0.0.1:8879"
+  args:
+    warn: false
+    chdir: "/addon"
+    executable: /bin/bash
+  with_dict: "{{ chart_repo }}"
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5

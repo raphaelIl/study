@@ -1,0 +1,26 @@
+version: 0.1
+log:
+  fields:
+    service: registry
+storage:
+    cache:
+        layerinfo: inmemory
+    filesystem:
+        rootdirectory: /var/lib/registry
+    maintenance:
+        uploadpurging:
+            enabled: false
+    delete:
+        enabled: true
+http:
+    addr: :8500
+    tls:
+      certificate: /path/to/x509/public
+      key: /path/to/x509/private
+
+auth:
+  token:
+    issuer: registry-token-issuer
+    realm: https://{{ cluster_CA_domain }}:8600/image-manager/api/v1/auth/token
+    rootcertbundle: /root/certs/bundle
+    service: token-service

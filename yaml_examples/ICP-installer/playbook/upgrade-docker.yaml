@@ -1,0 +1,19 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Upgrade docker engine
+  hosts: all
+  serial: 1
+  force_handlers: True
+
+  roles:
+    - {role: upgrade-docker-check}
+    - {role: kubectl-config}
+    - {role: cordon, when: installer_out.stdout == 'no' and (not_install|skipped)}
+    - {role: drain, when: installer_out.stdout == 'no' and (not_install|skipped)}
+    - {role: upgrade-docker, when: installer_out.stdout == 'no' and (not_install|skipped)}
+    - {role: uncordon, when: installer_out.stdout == 'no' and (not_install|skipped)}

@@ -1,0 +1,73 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Getting registry secret
+  shell: |
+    username=$(kubectl get sa default -n kube-system -o jsonpath='{.secrets[0].name}')
+    [[ "X$username" != "X" ]] || exit 1
+    password=$(kubectl get secret ${username} -n kube-system -o jsonpath='{.data.token}' | base64 -d)
+    [[ "X$password" != "X" ]] || exit 1
+    echo token.kube-system.$username
+    echo $password
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  run_once: true
+  register: icp_image_pull_secret_result
+  until: icp_image_pull_secret_result|succeeded
+  retries: 10
+  delay: 30
+
+- name: Docker login to registry
+  shell: |
+    docker login -u {{ icp_image_pull_secret_result.stdout_lines[0] }} -p {{ icp_image_pull_secret_result.stdout_lines[1] }} {{ image_repo.split('/')[0] }}
+  args:
+    executable: /bin/bash
+  register: result
+  until: result|succeeded
+  retries: 20
+  delay: 30
+
+- name: Pull hyperkube and pause images
+  shell: |
+    docker pull {{ item }}
+  args:
+    executable: /bin/bash
+  with_items:
+    - "{{ k8s_image }}"
+    - "{{ k8s_pause_image }}"
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5
+
+- name: Pulling HA images for proxy node
+  shell: |
+    ha_image=
+    if [[ "{{ vip_manager }}" == "etcd" ]]; then
+        ha_image={{ vip_manager_image }}
+    elif [[ "{{ vip_manager }}" == "keepalived" ]]; then
+        ha_image={{ keepalived_image }}
+    else
+        ha_image={{ ucarp_image }}
+    fi
+    docker pull $ha_image
+  args:
+    executable: /bin/bash
+  when:
+    - proxy_num|int > 1
+    - proxy_vip != '127.0.1.1'
+    - inventory_hostname in proxy_nodes
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5
+
+- name: Docker logout
+  shell: docker logout {{ image_repo.split('/')[0] }}
+  args:
+    executable: /bin/bash

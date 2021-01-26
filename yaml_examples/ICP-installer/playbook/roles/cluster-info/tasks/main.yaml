@@ -1,0 +1,66 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating ibmcloud-cluster-info rbac
+  shell:
+    cmd: |
+      cat <<EOF | kubectl apply -f -
+      ---
+      kind: Role
+      apiVersion: rbac.authorization.k8s.io/v1
+      metadata:
+        name: ibmcloud-cluster-info
+        namespace: kube-public
+      rules:
+        - apiGroups: [""]
+          resources: ["configmaps"]
+          resourceNames: ["ibmcloud-cluster-info"]
+          verbs: ["get"]
+
+      ---
+      kind: RoleBinding
+      apiVersion: rbac.authorization.k8s.io/v1
+      metadata:
+        name: ibmcloud-cluster-info
+        namespace: kube-public
+      subjects:
+        - kind: Group
+          apiGroup: rbac.authorization.k8s.io
+          name: "system:authenticated"
+        - kind: Group
+          apiGroup: rbac.authorization.k8s.io
+          name: "system:unauthenticated"
+      roleRef:
+        kind: Role
+        name: ibmcloud-cluster-info
+        apiGroup: rbac.authorization.k8s.io
+      EOF
+  args:
+    executable: /bin/bash
+
+- name: Creating ibmcloud-cluster-info config
+  shell:
+    cmd: |
+      cat <<EOF | kubectl apply -f -
+      kind: ConfigMap
+      apiVersion: v1
+      metadata:
+        name: ibmcloud-cluster-info
+        namespace: kube-public
+      data:
+        edition: "{{ edition }}"
+        cluster_ca_domain: "{{ cluster_CA_domain }}"
+        cluster_address: "{{ cluster_external_address }}"
+        cluster_router_http_port: "{{ router_http_port }}"
+        cluster_router_https_port: "{{ router_https_port }}"
+        cluster_kube_apiserver_port: "{{ kube_apiserver_secure_port }}"
+        proxy_address: "{{ proxy_external_address }}"
+        proxy_ingress_http_port: "{{ ingress_http_port }}"
+        proxy_ingress_https_port: "{{ ingress_https_port }}"
+      EOF
+  args:
+    executable: /bin/bash

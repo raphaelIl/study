@@ -1,0 +1,20 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Delete auth certs generation job
+  shell: kubectl delete jobs/auth-idp-platform-auth-cert-gen --ignore-not-found=true -n kube-system
+  args:
+    executable: /bin/bash
+
+- name: Delete auth configmaps
+  shell: kubectl delete cm/auth-idp-platform-auth-cert-gen --ignore-not-found=true -n kube-system
+  args:
+    executable: /bin/bash
+
+- name: Delete auth related secret
+  shell: kubectl delete secret monitoring-monitoring-ca-cert --ignore-not-found=true -n kube-system
+  args:
+    executable: /bin/bash

@@ -1,0 +1,52 @@
+# phpldapadmin.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-admin
+  namespace: <namespace>
+spec:
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  selector:
+    app: ldap-admin
+  type: NodePort                 # ingress를 따로 생성하지 않는다면 NodePort로 접근이 가능하도록 정의
+ 
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap-admin
+  namespace: <namespace>
+  labels:
+    app: ldap-admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ldap-admin
+  template:
+    metadata:
+      labels:
+        app: ldap-admin
+    spec:
+      containers:
+      - name: ldap-admin
+        image: <cluster>:8500/default/osixia/phpldapadmin:latest
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        env:
+        - name: PHPLDAPADMIN_HTTPS
+          value: 'false'
+        - name: PHPLDAPADMIN_LDAP_HOSTS
+          value: ldap                         # ldap service name
+        resources:
+          limits:
+            cpu: 300m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi

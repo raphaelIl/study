@@ -1,0 +1,25 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Adding cluster_CA_domain to /etc/hosts file
+  lineinfile:
+    dest: /etc/hosts
+    insertafter: EOF
+    state: present
+    line: '{{ cluster_internal_address }} {{ cluster_CA_domain }}'
+    regexp: '^.* {{ cluster_CA_domain }}$'
+    unsafe_writes: yes
+  when: cluster_internal_address | ipaddr
+
+- name: Creating Docker certificate directory
+  file: path=/etc/docker/certs.d/{{ cluster_CA_domain }}:8500 state=directory mode=0755
+
+- name: Copying Root CA certificate to Docker certificate directory
+  copy: src={{ inventory_dir }}/cfc-certs/root-ca/ca.crt dest=/etc/docker/certs.d/{{ cluster_CA_domain }}:8500/root-ca.crt mode=0644
+
+- name: Copying registry certificate to Docker certificate directory
+  copy: src={{ inventory_dir }}/cfc-certs/router/icp-router.crt dest=/etc/docker/certs.d/{{ cluster_CA_domain }}:8500/ca.crt mode=0644

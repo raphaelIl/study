@@ -1,0 +1,20 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating registry storage directory
+  file: path={{ registry_storage_dir }} state=directory
+
+- name: Creating registry storage check file
+  file: path={{ registry_storage_dir }}/.file-check state=touch
+  run_once: true
+
+- name: Checking if set the shared storage for registry or not
+  wait_for:
+    path: "{{ registry_storage_dir }}/.file-check"
+    state: present
+    msg: "Please set a shared storage for image registry {{ registry_storage_dir }} and continue installation"
+    timeout: 120

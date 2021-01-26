@@ -1,0 +1,22 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Ensuring that the ICP CA Issuers exists
+  template: src=icp-ca-issuer.yaml.j2 dest={{ inventory_dir }}/cfc-components/icp-ca-issuer.yaml mode=0644
+
+- name: Waiting for ClusterIssuer CRD
+  shell: kubectl api-resources | grep -q clusterissuers
+  args:
+    executable: /bin/bash
+  register: result
+  until: result|succeeded
+  retries: 10
+  delay: 60
+
+- name: Configuring cert-manager with ICP CA Issuer
+  shell: kubectl apply --force --overwrite=true -f {{ inventory_dir }}/cfc-components/icp-ca-issuer.yaml
+  args:
+    executable: /bin/bash

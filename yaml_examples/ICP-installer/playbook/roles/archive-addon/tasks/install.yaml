@@ -1,0 +1,30 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Adding helm repo to local
+  shell: |
+    if [[ "{{ item.value.repo }}" == "local-charts" ]]; then
+      path=helm-repo
+    else
+      path=mgmt-repo
+    fi
+    export HELM_HOME=~/.helm
+    /usr/local/bin/helm init -c --skip-refresh
+    /usr/local/bin/helm repo add {{ item.value.repo }} http://mycluster.icp:8080/$path/charts --ca-file $HELM_HOME/ca.pem --cert-file $HELM_HOME/cert.pem --key-file $HELM_HOME/key.pem
+
+- name: Updating helm repo
+  shell: /usr/local/bin/helm repo update
+
+- name: Creating values.yaml file
+  template: src=values.yaml.j2 dest=/tmp/values.yaml mode=0644
+
+- name: Installing helm chart
+  shell: |
+    if ! /usr/local/bin/helm status --tls {{ chart.name }} &>/dev/null; then
+      /usr/local/bin/helm install --tls --timeout={{ helm_timeout }} --name={{ chart.name }} \
+        --namespace={{ item.value.namespace }} -f /tmp/values.yaml {{ item.value.repo }}/{{ chart.name }}
+    fi

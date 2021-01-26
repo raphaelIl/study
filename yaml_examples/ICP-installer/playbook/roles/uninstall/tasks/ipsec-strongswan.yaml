@@ -1,0 +1,44 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Setting IPsec common variables
+  set_fact:
+    strongswan_inst_path: "{% if ansible_distribution == 'RedHat' %}/etc/strongswan/{% else %}/etc/{% endif %}"
+    ipsec_marker: "# {mark} ANSIBLE MANAGED ICP IPSEC CONFIG"
+
+- name: Fetching strongswan service status
+  service:
+    name: strongswan
+  register: strongswan_service
+
+- block:
+    - name: Stopping strongswan service
+      service:
+        name: strongswan
+        state: stopped
+      when: strongswan_service.status.ActiveState == "active"
+
+    - name: Removing IPsec certificate files
+      file: path={{ item }} state=absent
+      with_items:
+        - "{{strongswan_inst_path}}ipsec.d/cacerts/ca.crt"
+        - "{{strongswan_inst_path}}ipsec.d/private/ipsec-mesh.key"
+        - "{{strongswan_inst_path}}ipsec.d/certs/ipsec-mesh.crt"
+
+    - name: Removing IPsec configurations
+      blockinfile:
+        path: "{{ strongswan_inst_path }}ipsec.conf"
+        marker: "{{ipsec_marker}}"
+        content: ""
+
+    - name: Removing IPsec secrets configuration
+      blockinfile:
+        path: "{{ strongswan_inst_path }}ipsec.secrets"
+        marker: "{{ipsec_marker}}"
+        content: ""
+
+  when: strongswan_service.status.LoadState == "loaded"

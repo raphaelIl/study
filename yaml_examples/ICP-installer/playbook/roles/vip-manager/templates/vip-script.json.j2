@@ -1,0 +1,72 @@
+{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "name": "k8s-{{ vip_node_type }}-vip-script",
+        "namespace": "kube-system",
+        "annotations": {
+            "scheduler.alpha.kubernetes.io/critical-pod": ""
+        }
+    },
+    "spec": {
+        "hostNetwork": true,
+        "containers": [
+            {
+                "name": "vip-script",
+                "image": "{{ vip_manager_image }}",
+                "imagePullPolicy": "IfNotPresent",
+                "env": [
+                    {
+                        "name": "VIP",
+                        "value": "{{ vip_address }}"
+                    },
+                    {
+                        "name": "VIP_IFACE",
+                        "value": "{{ vip_interface }}"
+                    },
+                    {
+                        "name": "LEADER_LOCK",
+                        "value": "{{ vip_node_type }}-vip-lock"
+                    },
+                    {
+                        "name": "ETCDCTL_ENDPOINTS",
+                        "value": "{% for node in etcd_nodes %}https://{{ node }}:4001{% if not loop.last %},{% endif %}{% endfor %}"
+                    },
+                    {
+                        "name": "ETCDCTL_CACERT",
+                        "value": "/etcd-certs/ca.pem"
+                    },
+                    {
+                        "name": "ETCDCTL_KEY",
+                        "value": "/etcd-certs/client-key.pem"
+                    },
+                    {
+                        "name": "ETCDCTL_CERT",
+                        "value": "/etcd-certs/client.pem"
+                    }
+                ],
+                "volumeMounts": [
+                    {
+                        "mountPath": "/etcd-certs",
+                        "name": "etcd-certs"
+                    }
+                ],
+                "securityContext": {
+                    "capabilities": {
+                        "add": [
+                            "NET_ADMIN"
+                        ]
+                    }
+                }
+            }
+        ],
+        "volumes": [
+            {
+                "hostPath": {
+                    "path": "/etc/cfc/conf/etcd"
+                },
+                "name": "etcd-certs"
+            }
+        ]
+    }
+}

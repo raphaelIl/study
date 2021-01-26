@@ -1,0 +1,58 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Pulling Kubernetes images from private registry
+  shell: |
+    echo "{{ pre_pull_all_images | join(' ') }}" | xargs -P10 -n1 crictl pull --creds {{ docker_username }}:{{ docker_password }}
+  args:
+    executable: /bin/bash
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5
+
+- name: Pulling Etcd images from private registry
+  shell: |
+    echo "{{ pre_pull_etcd_images | join(' ') }}" | xargs -P10 -n1 crictl pull --creds {{ docker_username }}:{{ docker_password }}
+  args:
+    executable: /bin/bash
+  when: inventory_hostname in etcd_nodes
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5
+
+- name: Pulling HA images from private registry
+  shell: |
+    ha_image=
+    if [[ "{{ vip_manager }}" == "etcd" ]]; then
+        ha_image={{ vip_manager_image }}
+    elif [[ "{{ vip_manager }}" == "keepalived" ]]; then
+        ha_image={{ keepalived_image }}
+    else
+        ha_image={{ ucarp_image }}
+    fi
+    crictl pull --creds {{ docker_username }}:{{ docker_password }} $ha_image
+  args:
+    executable: /bin/bash
+  when:
+    - master_num|int > 1 or proxy_num|int > 1
+    - cluster_vip != '127.0.1.1' or proxy_vip != '127.0.1.1'
+    - inventory_hostname in master_nodes or inventory_hostname in proxy_nodes
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5
+
+- name: Pull es dump image
+  shell: |
+    crictl pull --creds {{ docker_username }}:{{ docker_password }} {{ es_dump_image }}
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5
+  when: inventory_hostname in master_nodes[0]

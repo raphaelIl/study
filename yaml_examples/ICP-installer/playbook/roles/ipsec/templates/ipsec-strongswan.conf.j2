@@ -1,0 +1,18 @@
+conn ICPDataChannel
+    auto=route
+    type=transport
+    leftcert={{ ipsec_left_cert }}
+    left={{ ipsec_left_node_ip }}
+    right=%any
+    rightsubnet={{ ipsec_right_subnets }}
+    keyexchange=ike
+    esp={% if ipsec_mesh.cipher_suite != "" %}{{ ipsec_mesh.cipher_suite }}{% else %}aes128gcm16!{% endif %}
+
+
+{% if ipsec_mesh.exclude_ips is defined and ipsec_mesh.exclude_ips | length > 0 %}
+conn ICPDataPassThrough
+    auto=route
+    type=passthrough
+    leftsubnet={{ ipsec_left_node_ip }}
+    rightsubnet={{ ipsec_mesh_exclude_ips }}
+{% endif %}

@@ -1,0 +1,31 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Performing post deployment actions
+  hosts: localhost
+
+  tasks:
+    - name: Waiting for all services in running status
+      shell: |
+        index=0
+        retries=20
+        while true; do
+          sleep 30
+          index=$(( index + 1 ))
+          [[ $index -eq $retries ]] && break
+          pods=$(kubectl --namespace=kube-system get pods --no-headers 2>&1)
+          echo "$pods" | egrep -v 'Completed|Running|Succeeded' || break
+        done
+        true
+      vars:
+        dashboard_host: "{{ cluster_external_address }}"
+        dashboard_port: "{{ router_https_port }}"
+        dashboard_user: "{{ default_admin_user }}"
+        dashboard_pass: "{{ default_admin_password }}"
+
+    - name: Creating the install lock file
+      file: path={{ inventory_dir }}/.install-{{ version }}.lock state=touch

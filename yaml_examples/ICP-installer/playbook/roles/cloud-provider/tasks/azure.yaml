@@ -1,0 +1,33 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating cloud provider conf directory
+  file: path=/etc/cfc/conf state=directory mode=0700
+
+- name: Creating Cloud Provider config file
+  template: src=cloud-provider.j2 dest={{ cloud_provider_conf }} mode=0600
+  vars:
+    cloud_provider_tmpl: "{{ azure.cloud_provider_conf }}"
+
+- name: Creating Cloud Provider controller config file
+  template: src=cloud-provider.j2 dest={{ cloud_provider_conf }}-controller mode=0600
+  vars:
+    cloud_provider_tmpl: "{{ azure.cloud_provider_controller_conf }}"
+  when:
+    - inventory_hostname in master_nodes
+
+- name: Getting the stat of user provided Cloud Provider config file
+  stat:
+    path: "{{ inventory_dir }}/misc/cloud_provider/{{ cloud_provider }}.conf"
+  register: cloud_provider_conf_path
+  delegate_to: localhost
+
+- name: Creating user provided Cloud Provider config file
+  copy: src={{ inventory_dir }}/misc/cloud_provider/{{ cloud_provider }}.conf dest={{ cloud_provider_conf }} mode=0600
+  when:
+    - inventory_hostname in master_nodes
+    - cloud_provider_conf_path.stat.exists

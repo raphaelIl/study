@@ -1,0 +1,25 @@
+#KMS server configuration settings
+SERVER_CONFIG:
+  REGION: "IBMCloudPrivate"
+  NUM_LEN_BYTES: 4
+  CACHE_TIMEOUT_IN_HOURS: 1
+  RESTART_DELAY_IN_SECONDS: 30
+  UNIX_SOCKET_PATH: "/tmp/keyprotectprovider.sock"
+  TOKEN_URL: "https://iam-token-service.kube-system:10443/oidc/token"
+  TOKEN_URL_CA_FILE: "/etc/cfc/conf/ca.crt"
+  API_KEY: "rYVNc5OVMXfzRWP3eMmLkuz_Vu07T4HzxsAdxopHom67"
+  HEALTHZ_PATH: "/healthz"
+  HEALTHZ_PORT: ":8081"
+  NEW_DEK: false
+  MAX_RETRIES: 0
+#Key protect configuration settings
+KP_CONFIG:
+  VERSION: 1
+  CRK_ID: "43f221b9-1660-4df0-a51f-15d57afa55da"
+  URL: "https://kms-api.kube-system:28674"
+  KP_CA_FILE: "/etc/cfc/conf/ca.crt"
+  INSTANCE_ID: "4315e8a1-c20f-47ee-97ce-2f6ea6031ce3"
+#Log settings
+LOGGER:
+  LOG_LEVEL: "info"
+  LOG_ALL_VALUES: false

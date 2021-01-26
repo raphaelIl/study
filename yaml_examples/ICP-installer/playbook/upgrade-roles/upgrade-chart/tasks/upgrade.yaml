@@ -1,0 +1,27 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Upgrading chart package
+  shell: |
+    filename="{{ item.value.path }}"
+    if [[ -d "$filename" ]]; then
+      filename=$(ls $filename/*.tgz | tail -1)
+    fi
+    {{ role_path }}/files/upgrade-chart.sh \
+    --name={{ item.key }} \
+    --path=$filename \
+    --override='{{ upgrade_override[item.key] | default({}) | to_nice_yaml(indent=2) }}' \
+    --namespace={{ item.value.namespace | default('kube-system') }} \
+    --timeout={{ helm_timeout }} \
+    --installExtraArgs="{{ helm_args.install[item.key] | default([]) | join(' ') }}" \
+    --upgradeExtraArgs="{{ helm_args.upgrade[item.key] | default([]) | join(' ') }}"
+  args:
+    warn: false
+    chdir: "{{ inventory_dir }}"
+    executable: /bin/bash
+  ignore_errors: true
+  when: not (management_services[item.key] is defined and management_services[item.key] == "disabled")
+  with_dict: "{{ helm_charts }}"

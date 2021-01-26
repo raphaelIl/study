@@ -1,0 +1,19 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+# Generate docker image list and put it to cluster dir
+- name: Generate docker image list
+  shell: |
+    mkdir -p "{{ inventory_dir }}/.misc/"
+    if ! [[ -e "{{ inventory_dir }}/.misc/image-list.txt" ]]; then
+      {{ role_path }}/files/image-list.sh -r {{ version }}
+    fi
+  args:
+    warn: false
+    executable: /bin/bash
+  delegate_to: localhost
+  run_once: true

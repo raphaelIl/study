@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    insecure-skip-tls-verify: true
+    server: {{ kubernetes_apiserver_url }}
+  name: cfc-cluster
+contexts:
+- context:
+    cluster: cfc-cluster
+    user: kube-proxy
+users:
+- name: kube-proxy
+  user:
+    client-certificate: /etc/cfc/kube-proxy/kube-proxy.crt
+    client-key: /etc/cfc/kube-proxy/kube-proxy.key

@@ -1,0 +1,24 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating Kubernetes resources
+  hosts: all
+  any_errors_fatal: true
+
+  roles:
+    - {role: psp-config, delegate_to: localhost, run_once: true}
+    - {role: rbac-config, delegate_to: localhost, run_once: true}
+    - {role: cluster-info, delegate_to: localhost, run_once: true}
+    - {role: namespace-config, delegate_to: localhost, run_once: true}
+    - {role: storageclass-master, delegate_to: localhost, run_once: true}
+    - {role: storageclass-management, delegate_to: localhost, run_once: true}
+    - {role: storageclass-va, delegate_to: localhost, run_once: true}
+    - {role: storage-master, delegate_to: localhost, run_once: true}
+    - {role: storage-management, delegate_to: localhost, run_once: true}
+    - {role: storage-va, delegate_to: localhost, run_once: true}
+    - {role: private-registry-pull-secret, when: private_registry_enabled, delegate_to: localhost, run_once: true}
+    - {role: icp-registry-pull-secret, when: private_registry_enabled == false and image_repo != "ibmcom", delegate_to: localhost, run_once: true}

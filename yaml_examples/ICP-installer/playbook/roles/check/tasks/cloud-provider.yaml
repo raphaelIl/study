@@ -1,0 +1,38 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking mandatory vsphere configuration parameters
+  fail: msg="Mandatory configuration parameter '{{ item }}' is missing."
+  with_items: ['server', 'user', 'password', 'working_dir', 'datastore', 'datacenter']
+  when:
+    - cloud_provider == 'vsphere'
+    - vsphere_conf is defined
+    - item not in vsphere_conf.keys()
+  run_once: true
+
+- name: Validating kubelet_nodename configuration
+  fail: msg="When cloud provider is vsphere, 'kubelet_nodename' configuration must be set to 'hostname'."
+  when:
+    - cloud_provider == 'vsphere'
+    - kubelet_nodename != 'hostname'
+  run_once: true
+
+- name: Getting the stat of user provided Cloud Provider config file
+  stat:
+    path: "{{ inventory_dir }}/misc/cloud_provider/{{ cloud_provider }}.conf"
+  register: cloud_provider_conf_path
+  delegate_to: localhost
+  run_once: true
+  when: cloud_provider == 'vsphere'
+
+- name: Validating vsphere cloud provider configuration
+  fail: msg="Please configure vsphere_conf in config.yaml or add the custom config file in {{ inventory_dir }}/misc/cloud_provider/"
+  when:
+    - cloud_provider == 'vsphere'
+    - vsphere_conf is not defined
+    - cloud_provider_conf_path.stat.exists == False
+  run_once: true

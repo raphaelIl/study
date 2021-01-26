@@ -1,0 +1,23 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  creationTimestamp: null
+  name: recommendation
+  namespace: tutorial
+spec:
+  hosts:
+  - recommendation
+  http:
+  - match:
+    - headers:
+        baggage-user-agent:
+          regex: .*Safari.*    #http header에서 safari를 사용하는 유저를 v2로 가게 하는 고급 라우팅.
+    route:
+    - destination:
+        host: recommendation
+        subset: version-v2
+  - route:
+    - destination:
+        host: recommendation
+        subset: version-v1
+---

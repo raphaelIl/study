@@ -1,0 +1,12 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: mgmt servcie persistent volume
+  shell: |
+    logfile={{healthcheck.log_pv_path}}/mgmt-svc-pv.log
+    echo "##### ICP mgmt service persistent volume #####" > ${logfile}
+    kubectl get pv mgmt-repo-pv -o wide >> ${logfile}

@@ -1,0 +1,27 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: metering-{{ inventory_hostname }}
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: metering-storage
+  local:
+    path: {{ metering_storage_dir }}
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - {{ kubelet_nodename | node_name(inventory_hostname, hostvars[inventory_hostname]['ansible_'~kubelet_nodename]) }}

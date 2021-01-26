@@ -1,0 +1,16 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating registry-certs secret
+  shell: |
+    kubectl -n kube-system create secret generic registry-certs \
+      --from-file=rootcertbundle=image-registry/icp-registry.crt \
+      --from-file=rootcertbundle.key=image-registry/icp-registry.key \
+      --dry-run -o yaml | kubectl apply -f -
+  args:
+    chdir: "{{ inventory_dir }}/cfc-certs"
+    executable: /bin/bash

@@ -1,0 +1,28 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Copying nsx_t package
+  copy: src="{{ inventory_dir }}/images/{{ nsx_t.ncp_package }}" dest="{{ offline_pkg_copy_path }}"
+
+- block:
+    - name: Loading images from nsx_t package
+      shell: docker load -i {{ offline_pkg_copy_path }}/{{ nsx_t.ncp_package }}
+
+    - name: Validating if the nsx_t image exist
+      shell: docker inspect --type=image {{ nsx_t.ncp_image }}:{{ nsx_t.ncp_image_tag }}
+  when: container_runtime == "docker"
+
+- block:
+    - name: Loading images from nsx_t package
+      shell: ctr cri load {{ offline_pkg_copy_path }}/{{ nsx_t.ncp_package }}
+
+    - name: Validating if the nsx_t image exist
+      shell: crictl inspecti {{ nsx_t.ncp_image }}:{{ nsx_t.ncp_image_tag }}
+  when: container_runtime == "containerd"
+
+- name: Removing image package
+  file: path="{{ offline_pkg_copy_path }}/{{ nsx_t.ncp_package }}" state=absent

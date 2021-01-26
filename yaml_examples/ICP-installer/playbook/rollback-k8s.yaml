@@ -1,0 +1,82 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Rollback local files
+  hosts: all
+  serial: "{{ rolling_update_serial | default(0) }}"
+  force_handlers: True
+  tasks:
+    - name: Rollback files
+      shell: |
+        if [[ -d {{ item }}.{{ backup_version }} ]]; then
+          rm -rf {{ item }}
+          cp -r {{ item }}.{{ backup_version }} {{ item }}
+          rm -rf {{ item }}.{{ backup_version }}
+        fi
+      with_items:
+        - "{{ inventory_dir }}/cfc-components"
+      delegate_to: localhost
+      run_once: true
+
+- name: Rollback kubelet on master nodes
+  hosts: master
+  serial: "{{ rolling_update_serial | default(1) }}"
+  force_handlers: True
+  roles:
+    - rollback-master
+
+- name: Rollback etcd on etcd nodes
+  hosts: "{{ groups.etcd is defined | ternary('etcd', 'master') }}"
+  serial: "{{ rolling_update_serial | default(0) }}"
+  force_handlers: True
+  roles:
+    - rollback-etcd
+
+- name: Rollback kubelet on other nodes
+  hosts: all:!master
+  serial: "{{ rolling_update_kubelet | default(0) }}"
+  force_handlers: True
+  roles:
+    - rollback-kubelet
+
+- name: Rollback image manager
+  hosts: all
+  serial: "{{ rolling_update_serial | default(0) }}"
+  force_handlers: True
+  roles:
+    - {role: common, delegate_to: localhost, run_once: true}
+    - {role: kubectl-config, delegate_to: localhost, run_once: true}
+    - {role: rollback-image-manager, delegate_to: localhost, run_once: true}
+    - {role: restore-certs, delegate_to: localhost, run_once: true}
+
+- name: Rollback post actions
+  hosts: all
+  serial: "{{ rolling_update_serial | default(0) }}"
+  tasks:
+    - name: Waiting for all services in running status
+      shell: |
+        index=0
+        retries=20
+        while true; do
+          sleep 30
+          index=$(( index + 1 ))
+          [[ $index -eq $retries ]] && break
+          pods=$(kubectl --namespace=kube-system get pods --no-headers 2>&1)
+          echo "$pods" | egrep -v 'Completed|Running|Succeeded' || break
+        done
+        true
+      delegate_to: localhost
+      run_once: true
+
+    - import_role:
+        name: restore-certs
+      delegate_to: localhost
+      run_once: true
+
+    - import_role:
+        name: cleanup
+      delegate_to: localhost
+      run_once: true

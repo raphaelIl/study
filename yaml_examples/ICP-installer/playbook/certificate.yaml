@@ -1,0 +1,32 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- import_playbook: plays/cert-creation.yaml
+
+- import_playbook: plays/etcd-master-kubelet.yaml
+
+- import_playbook: plays/etcd-deploy.yaml
+
+- import_playbook: plays/etcd-restart.yaml
+
+- import_playbook: plays/master-kubernetes.yaml
+
+- import_playbook: plays/master-kubernetes-restart.yaml
+
+- import_playbook: plays/kubectl-config.yaml
+
+- import_playbook: plays/cert-secret-creation.yaml
+
+- import_playbook: plays/image-manager.yaml
+
+- import_playbook: plays/all-kubelet.yaml
+
+- import_playbook: plays/proxy-vip-manager.yaml
+
+- import_playbook: plays/reload-services.yaml
+
+- import_playbook: plays/all-ipsec.yaml

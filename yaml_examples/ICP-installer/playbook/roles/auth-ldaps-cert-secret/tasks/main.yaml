@@ -1,0 +1,22 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Create platform-auth-ldaps-ca-cert secret
+  shell:
+    cmd: |
+      kubectl -n kube-system get secret platform-auth-ldaps-ca-cert || cat <<EOF | kubectl apply -f -
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: platform-auth-ldaps-ca-cert
+        namespace: kube-system
+      type: Opaque
+      data:
+        certificate: ""
+      EOF
+  args:
+    executable: /bin/bash

@@ -1,0 +1,21 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Migrate installer config
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Backup config.yaml files
+      copy:
+        src: "{{ inventory_dir }}/config.yaml"
+        dest: "{{ inventory_dir }}/config.yaml.{{ backup_version }}"
+        force: no
+      run_once: yes
+
+    - migrate_yaml: migrate_rules="{{ migrate_rules | default([]) }}" yaml_path="{{ inventory_dir }}/config.yaml" state=present
+      run_once: yes

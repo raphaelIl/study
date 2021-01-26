@@ -1,0 +1,47 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Downloading cloudctl
+  get_url:
+    url: "https://{{ cluster_internal_address }}:{{ router_https_port }}/api/cli/cloudctl-linux-{{ ansible_architecture|node_arch }}"
+    dest: /usr/local/bin/cloudctl
+    mode: 0755
+    force: yes
+    validate_certs: no
+  register: result
+  until: result|succeeded
+  retries: 5
+  delay: 30
+
+- name: Configuring cloudctl
+  shell: |
+    cloudctl login -n kube-system -u {{ default_admin_user }} -p {{ default_admin_password }} -a https://{{ cluster_internal_address }}:{{ router_https_port }} --skip-ssl-validation -c "id-{{ cluster_name }}-account"
+  args:
+    warn: false
+    chdir: "{{ inventory_dir }}"
+    executable: /bin/bash
+  register: result
+  until: result|succeeded
+  retries: 5
+  delay: 30
+
+- name: Finding all the chart packages
+  find:
+    paths: /addon
+    patterns: '*.tgz'
+    excludes:
+      - '*-99.99.99-*.tgz'
+  register: chart_packages
+
+- name: Uploading chart packages to helm repo
+  shell: |
+    cloudctl catalog load-chart --archive {{ item.path }} --repo mgmt-charts
+  loop: "{{ chart_packages.files }}"
+  register: result
+  until: result|succeeded
+  retries: 5
+  delay: 30

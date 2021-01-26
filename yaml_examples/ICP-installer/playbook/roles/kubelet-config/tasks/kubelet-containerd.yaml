@@ -1,0 +1,43 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Ensuring kubelet install dir exists
+  file: path=/opt/kubernetes state=directory mode=0755
+
+- name: Ensuring that the kubelet sandbox file exist
+  template: src=kubelet-sandbox.yaml.j2 dest=/tmp/kubelet-sandbox.yaml mode=0644
+
+- name: Ensuring that the kubelet container file exist
+  template: src=kubelet-containerd.yaml.j2 dest=/tmp/kubelet-containerd.yaml mode=0644
+
+- name: Creating kubelet sandbox
+  shell: crictl runp /tmp/kubelet-sandbox.yaml
+  register: sandboxid
+
+- name: Creating kubelet container
+  shell: crictl create {{ sandboxid.stdout }} /tmp/kubelet-containerd.yaml /tmp/kubelet-sandbox.yaml
+  register: containerid
+
+- name: Starting kubelet container
+  shell: crictl start {{containerid.stdout}}
+
+- block:
+    - name: Check that ipvsadm exists
+      stat:
+        path: "{% if ansible_distribution == 'Ubuntu' %}/sbin/ipvsadm{% else %}/usr/sbin/ipvsadm{% endif %}"
+      register: stat_ipvsadm
+
+    - name: install ipvsadm
+      package:
+        name: ipvsadm
+        state: present
+      when: stat_ipvsadm.stat.exists == False
+      ignore_errors: true
+  when: ("--proxy-mode=ipvs" in kube_proxy_extra_args)
+
+- name: Creating kubelet service file
+  template: src=kubelet.service.j2 dest=/etc/systemd/system/kubelet.service mode=0644

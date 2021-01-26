@@ -1,0 +1,87 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating bootstrap token id
+  shell: head /dev/urandom | tr -dc a-z0-9 | head -c 6
+  args:
+    executable: /bin/bash
+  register: token_id
+  delegate_to: localhost
+  run_once: true
+
+- name: Creating bootstrap token secret
+  shell: head /dev/urandom | tr -dc a-z0-9 | head -c 16
+  args:
+    executable: /bin/bash
+  register: token_secret
+  delegate_to: localhost
+  run_once: true
+
+- name: Creating bootstrap token expiration
+  shell: |
+    ttl={{ bootstrap_token_ttl }}
+    hour=0
+    min=0
+    sec=0
+    hour_idx=`expr index $ttl "h"`
+    min_idx=`expr index $ttl "m"`
+    sec_idx=`expr index $ttl "s"`
+    if [ $hour_idx -gt 0 ]
+    then
+      let start=1
+      let num=$hour_idx-$start
+      hour=`expr substr $ttl $start $num`
+    fi
+    if [ $min_idx -gt 0 ]
+    then
+      let start=$hour_idx+1
+      let num=$min_idx-$start
+      min=`expr substr $ttl $start $num`
+    fi
+    if [ $sec_idx -gt 0 ]
+    then
+      if [ $min_idx -lt $hour_idx ]
+      then
+        min_idx=$hour_idx
+      fi
+      let start=$min_idx+1
+      let num=$sec_idx-$start
+      sec=`expr substr $ttl $start $num`
+    fi
+    let duration=$sec+$min*60+$hour*60*60
+    current=`date +%s`
+    let expiration=$duration+$current
+    echo `date -d @$expiration "+%Y-%m-%d"T"%H:%M:%S"Z`
+  args:
+    executable: /bin/bash
+  register: expiration
+  delegate_to: "{{ master_nodes[0] }}"
+  run_once: true
+
+- name: Creating kubeconfig file for kubelet
+  template: src=kubelet-bootstrap-config.j2 dest=/etc/cfc/kubelet/kubelet-bootstrap-config mode=0600
+
+- name: Ensuring component directory exist
+  file: path={{ inventory_dir }}/cfc-components state=directory mode=0755
+  delegate_to: localhost
+  run_once: true
+
+- name: Ensuring that the bootstrap-secret.yaml file exist
+  template: src=bootstrap-secret.j2 dest={{ inventory_dir }}/cfc-components/bootstrap-secret.yaml mode=0644
+  delegate_to: localhost
+  run_once: true
+
+- name: Creating bootstrap secret
+  shell: kubectl apply -f {{ inventory_dir }}/cfc-components/bootstrap-secret.yaml &>/dev/null && echo true || echo false
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  run_once: true
+  register: ready
+  until: ready.stdout|bool
+  retries: 10
+  delay: 60

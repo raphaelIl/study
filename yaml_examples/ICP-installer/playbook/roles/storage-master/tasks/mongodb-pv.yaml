@@ -1,0 +1,18 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating MongoDB pv file
+  template: src=mongodb.yaml.j2 dest={{ inventory_dir }}/cfc-components/storage/mongodb-{{ item }}.yaml mode=0644
+
+- name: Creating MongoDB persistent volume
+  shell: kubectl apply -f {{ inventory_dir }}/cfc-components/storage/mongodb-{{ item }}.yaml
+  args:
+    executable: /bin/bash
+
+- name: Creating MongoDB persistent directory
+  file: path={{ mongodb_storage_dir }} state=directory mode=0755
+  delegate_to: "{{ item }}"

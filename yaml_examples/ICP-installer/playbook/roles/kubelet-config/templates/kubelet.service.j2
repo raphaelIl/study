@@ -1,0 +1,43 @@
+[Unit]
+Description=Kubelet Service
+Documentation=https://github.com/kubernetes/kubernetes
+
+[Service]
+EnvironmentFile=-/etc/environment
+ExecStart=/opt/kubernetes/hyperkube kubelet \
+  --cadvisor-port=0 \
+  --docker-disable-shared-pid \
+  --bootstrap-kubeconfig=/etc/cfc/kubelet/kubelet-bootstrap-config \
+  --kubeconfig=/etc/cfc/kubelet/kubelet-config \
+  --cert-dir=/etc/cfc/kubelet \
+  --config=/etc/cfc/kubelet/kubelet-service-config \
+  --dynamic-config-dir=/etc/cfc/kubelet/kubelet-dynamic-config \
+  {% if network_type != "" -%}
+  --network-plugin=cni \
+  {% endif -%}
+  --hostname-override={{ kubelet_nodename | node_name(inventory_hostname, hostvars[inventory_hostname]['ansible_'~kubelet_nodename]) }} \
+  --node-ip={{ inventory_hostname }} \
+  --pod-infra-container-image={{ k8s_pause_image }} \
+  {% if cloud_provider != 'none' -%}
+  --cloud-provider={{ cloud_provider }} \
+  {% if ((inventory_hostname in groups['master']) or (cloud_provider == "azure")) -%}
+  --cloud-config={{ cloud_provider_conf }} \
+  {% endif -%}
+  {% endif -%}
+  {% if inventory_hostname not in groups['worker'] -%}
+  --housekeeping-interval=15s \
+  {% endif -%}
+  {%if container_runtime == "containerd" -%}
+  --container-runtime=remote \
+  --container-runtime-endpoint=/run/containerd/containerd.sock \
+  {% endif -%}
+  --node-labels={% include "kubelet.service.label.j2" %} \
+  --register-with-taints={% include "kubelet.service.taint.j2" %} \
+  --keep-terminated-pod-volumes=false \
+  {{ kubelet_extra_args_str }}
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

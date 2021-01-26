@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ds-test1
+spec:
+  selector:
+    matchLabels:
+      type: test
+  template:
+    metadata:
+      labels:
+        type: test
+    spec:
+      containers:
+      - name: ds-test
+        image: k8s.gcr.io/pause:2.0
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule

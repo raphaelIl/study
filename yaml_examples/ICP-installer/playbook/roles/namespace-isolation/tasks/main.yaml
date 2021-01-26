@@ -1,0 +1,84 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating annotations list
+  set_fact:
+    ns_isolation_annotations:
+      - scheduler.alpha.kubernetes.io/node-selector
+      - scheduler.alpha.kubernetes.io/defaultTolerations
+
+- name: Reading whitelist configuration
+  shell: "awk '/  # BEGIN ICP managed block/{flag=1; next} /  # END ICP managed block/{flag=0} flag' /etc/cfc/conf/podnodeselector.yaml"
+  register: existing_whitelist_config
+  delegate_to: "{{ groups['master'][0] }}"
+
+- name: Reading namespaces from whitelist configuration
+  set_fact:
+    existing_ns_config: "{{existing_whitelist_config.stdout.split('\n')}}"
+    existing_ns: []
+    removed_namespaces: []
+
+- name: Reading namespaces from whitelist configuration
+  set_fact:
+    existing_ns: "{{existing_ns}} + ['{{item.split(':')[0] | replace(\" \",\"\")}}']"
+  with_items: "{{existing_ns_config}}"
+  when:
+    - item != ''
+    - item.find("#") == -1
+
+- name: Removing duplicate namespace entries
+  set_fact:
+    isolated_namespaces_unique: "{{ isolated_namespaces_unique|default([]) + [item] }}"
+    new_ns_list: "{{ temporary_ns_list|default([]) + [item.namespace] }}"
+  when: item.namespace not in new_ns_list|default([])
+  loop: "{{ isolated_namespaces }}"
+
+- name: Getting removed namespaces
+  set_fact:
+    removed_namespaces: "{{ existing_ns | difference(new_ns_list|default([])) }}"
+
+- name: Deleting annotations for removed namespaces
+  shell: |
+    if [ `kubectl get namespace {{item.0}} --ignore-not-found | wc -l` -gt 0 ]; then
+      kubectl annotate namespace {{item.0}} {{item.1}}-
+    fi
+  loop: "{{ removed_namespaces|product(ns_isolation_annotations)|list }}"
+  when: removed_namespaces|length > 0
+
+- name: Generating namespace whitelist
+  set_fact:
+    namespace_block: "{% for item in isolated_namespaces %}  {{item.namespace}}: \"{{item.hostgroup}}=true\"\n{% endfor %}"
+
+- name: Updating namespace whitelist
+  blockinfile:
+    path: /etc/cfc/conf/podnodeselector.yaml
+    block: "{{namespace_block}}"
+    create: yes
+    marker: "  # {mark} ICP managed block"
+  delegate_to: "{{item}}"
+  with_items: "{{ groups['master'] }}"
+
+- name: Creating namespace
+  shell: |
+    if [ `kubectl get namespace {{item.namespace}} --ignore-not-found | wc -l` -eq 0 ]; then
+      kubectl create namespace {{item.namespace}}
+    fi
+  loop: "{{ isolated_namespaces_unique | default([])}}"
+  ignore_errors: true
+
+- name: Adding nodeSelector annotations to namespace
+  shell: "kubectl annotate namespace {{item.namespace}} \"{{ns_isolation_annotations[0]}}={{item.hostgroup}}=true\" --overwrite=true"
+  loop: "{{ isolated_namespaces_unique|default([]) }}"
+
+- name: Adding tolerations annotations to namespace
+  shell: "kubectl annotate namespace {{item.namespace}} {{ns_isolation_annotations[1]}}='[{\"key\":\"dedicated\",\"operator\":\"Equal\",\"value\":\"{{item.hostgroup}}\",\"effect\":\"NoSchedule\"}]' --overwrite=true"
+  loop: "{{ isolated_namespaces_unique|default([]) }}"
+
+- name: Restarting kubernetes apiserver
+  shell: docker stop $(docker ps -f name=k8s_apiserver_k8s-master- -q); true
+  delegate_to: "{{item}}"
+  with_items: "{{ groups['master'] }}"

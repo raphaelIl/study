@@ -1,0 +1,17 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Restore certificates
+  shell: |
+    rm -rf cfc-certs
+
+    cp -r backup/3.1.0/cfc-certs cfc-certs
+    cp -r backup/3.1.0/cfc-keys cfc-keys
+  args:
+    chdir: "{{ inventory_dir }}"
+    executable: /bin/bash
+    warn: false

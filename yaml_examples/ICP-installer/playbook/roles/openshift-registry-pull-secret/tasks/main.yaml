@@ -1,0 +1,28 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating namespaces
+  shell: |
+    kubectl --kubeconfig /etc/origin/master/admin.kubeconfig get namespace {{ item }} || kubectl --kubeconfig /etc/origin/master/admin.kubeconfig create namespace {{ item }}
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ master_nodes[0] }}"
+  with_items:
+    - ibmcom
+    - kube-system
+    - cert-manager
+
+- name: Allowing Pods to reference images from ibmcom
+  shell: |
+    export KUBECONFIG=/etc/origin/master/admin.kubeconfig
+    oc policy add-role-to-user system:image-puller system:serviceaccount:{{ item }}:default --namespace=ibmcom
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ master_nodes[0] }}"
+  with_items:
+    - kube-system
+    - cert-manager

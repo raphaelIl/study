@@ -1,0 +1,1 @@
+{{ hostvars['localhost'][item.key] | default({}) | to_nice_yaml(indent=2) }}

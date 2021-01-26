@@ -1,0 +1,30 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Check if Nvidia exists
+  shell: modprobe nvidia &>/dev/null && echo true || echo false
+  args:
+    executable: /bin/bash
+  register: nvidia_exist
+
+- block:
+    - name: Copying create-nvidia-dev to /var/lib/kubelet directory
+      template: src=files/create-nvidia-dev dest=/var/lib/kubelet mode=0755
+
+    - name: Copying create-nvidia-uvm to /var/lib/kubelet directory
+      template: src=files/create-nvidia-uvm dest=/var/lib/kubelet mode=0755
+
+    - name: Installing nvidia-dev service
+      template: src=files/nvidia-dev.service dest=/etc/systemd/system/nvidia-dev.service mode=0644
+
+    - name: Reload systemd
+      command: systemctl --system daemon-reload
+
+    - name: Starting nvidia-dev service
+      service: name=nvidia-dev.service state=started enabled=yes
+      ignore_errors: yes
+  when: (nvidia_exist.stdout|bool)

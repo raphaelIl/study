@@ -1,0 +1,24 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Copy old master pod file
+  copy:
+    src: "{{ backup_dir }}/pods/master.json"
+    dest: /etc/cfc/pods/
+    remote_src: yes
+
+- name: Copy old kube-proxy pod file
+  copy:
+    src: "{{ backup_dir }}/pods/kube-proxy.json"
+    dest: /etc/cfc/pods/kube-proxy.json
+    remote_src: yes
+
+- name: Restart kubelet
+  service: name=kubelet.service state=restarted enabled=yes
+
+- name: Waiting for Kubernetes to start
+  wait_for: host="{{ inventory_hostname }}" port={{ kube_apiserver_secure_port }} state=started timeout={{ wait_for_timeout }}
+  ignore_errors: yes

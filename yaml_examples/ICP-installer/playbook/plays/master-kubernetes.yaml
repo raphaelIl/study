@@ -1,0 +1,18 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Deploying master node
+  hosts: master
+  any_errors_fatal: true
+  serial: "{{ rolling_update_serial | default(0) }}"
+
+  roles:
+    - image-registry-check
+    - {role: vip-manager, when: master_num|int > 1 and cluster_vip != "127.0.1.1", vip_node_type: "master", vip_address: "{{ cluster_vip }}", vip_interface: "{{ vip_iface }}"}
+    - common
+    - setup-kubectl
+    - master

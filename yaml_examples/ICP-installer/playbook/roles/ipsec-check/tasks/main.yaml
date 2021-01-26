@@ -1,0 +1,15 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Getting the version file
+  shell: ls /opt/ibm/cfc/version &>/dev/null && echo yes || echo no
+  args:
+    executable: /bin/bash
+  register: version_file
+
+- include: ipsec.yaml
+  when: version_file.stdout == 'no'

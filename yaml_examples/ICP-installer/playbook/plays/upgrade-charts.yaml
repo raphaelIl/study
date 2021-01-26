@@ -1,0 +1,28 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Upgrading charts
+  hosts: localhost
+  serial: "{{ rolling_update_serial | default(0) }}"
+  vars:
+    install_type: "upgrade"
+
+  roles:
+    - common
+    - {role: chart-repo, when: chart_repo is defined, repos: "{{ chart_repo }}"}
+    - {role: upgrade-chart, when: infra_addon is defined, helm_charts: "{{ infra_addon }}"}
+    - {role: waitfor, res_name: kube-dns}
+    - {role: waitfor, res_name: glusterfs, when: "not (management_services['storage-glusterfs'] is defined and management_services['storage-glusterfs'] == 'disabled')"}
+    - {role: upgrade-chart, when: infra2_addon is defined, helm_charts: "{{ infra2_addon }}"}
+    - cert-manager
+    - {role: upgrade-chart, when: phase1_addon is defined, helm_charts: "{{ phase1_addon }}"}
+    - {role: waitfor, res_name: mongodb}
+    - {role: waitfor, res_name: mariadb}
+    - {role: upgrade-chart, when: phase2_addon is defined, helm_charts: "{{ phase2_addon }}"}
+    - {role: upgrade-chart, when: phase3_addon is defined, helm_charts: "{{ phase3_addon }}"}
+    - {role: waitfor, res_name: management-ingress}
+    - {role: upgrade-chart, when: phase4_addon is defined, helm_charts: "{{ phase4_addon }}"}
+    - {role: upgrade-chart, when: phase5_addon is defined, helm_charts: "{{ phase5_addon }}"}

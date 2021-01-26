@@ -1,0 +1,24 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Upgrade image manager
+  hosts: all
+  serial: "{{ rolling_update_serial | default(0) }}"
+  force_handlers: True
+  roles:
+    - {role: common, delegate_to: localhost, run_once: true}
+    - {role: kubectl-config, delegate_to: localhost, run_once: true}
+    - {role: registry-certs, delegate_to: localhost, run_once: true}
+    - {role: registry-certs-secrets, delegate_to: localhost, run_once: true}
+    - {role: image-manager, delegate_to: localhost, run_once: true}
+    - {role: waitfor, res_name: image-manager, delegate_to: localhost, run_once: true}
+
+- name: Push images to registry
+  hosts: master
+  serial: "{{ rolling_update_serial | default(1) }}"
+  force_handlers: True
+  roles:
+    - {role: icp-registry-image-push, when: private_registry_enabled == false and container_runtime == "docker"}

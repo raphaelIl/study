@@ -1,0 +1,21 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Deploying Kubelet on etcd/master nodes
+  hosts: "{{ groups['etcd'] is defined | ternary('etcd', '') }}:master"
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  serial: "{{ rolling_update_serial | default(0) }}"
+
+  roles:
+    - common
+    - sysctl
+    - iptables
+    - docker-config
+    - kubelet-config
+    - cloud-provider
+    - kubelet-service

@@ -1,0 +1,45 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating kubernetes certificate directory
+  file: path={{ inventory_dir }}/cfc-certs/kubernetes state=directory mode=0700
+
+- name: Getting ssl certificates addresses
+  set_fact:
+    cert_list:
+      - "IP:127.0.0.1"
+      - "IP:{{ service_cluster_ip_range | regex_replace('[^.]*$', '1') }}"
+      - "{% if cluster_external_address|ipaddr %}IP:{{ cluster_external_address }}{% else %}DNS:{{ cluster_external_address }}{% endif %}"
+      - "{% if cluster_internal_address|ipaddr %}IP:{{ cluster_internal_address }}{% else %}DNS:{{ cluster_internal_address }}{% endif %}"
+      - "DNS:kubernetes"
+      - "DNS:kubernetes.default"
+      - "DNS:kubernetes.default.svc"
+      - "DNS:kubernetes.default.svc.{{ cluster_domain }}"
+      - "DNS:{{ cluster_CA_domain }}"
+
+- name: Generating ssl certificates
+  shell: |
+    export CERT_DIR={{ inventory_dir }}/cfc-certs/kubernetes
+    export ROOT_CA_CRT={{ inventory_dir }}/cfc-certs/root-ca/ca.crt
+    export ROOT_CA_KEY={{ inventory_dir }}/cfc-certs/root-ca/ca.key
+    {{ role_path }}/files/make-ca-cert.sh 127.0.0.1 {{ cert_list | unique | join(",") }}
+  args:
+    creates: "{{ inventory_dir }}/cfc-certs/kubernetes/server.key"
+    executable: /bin/bash
+
+- name: Getting front-proxy certificates addresses
+  set_fact:
+    front_proxy_cert_list:
+      - "{% if cluster_internal_address|ipaddr %}IP:{{ cluster_internal_address }}{% else %}DNS:{{ cluster_internal_address }}{% endif %}"
+      - "DNS:{{ cluster_CA_domain }}"
+
+- name: Generating front proxy requestheader certificates for K8S API SERVER
+  shell: >
+    CERT_DIR={{ inventory_dir }}/cfc-certs/front
+    {{ role_path }}/files/make-front-proxy-cert.sh {{ cluster_CA_domain }} {{ front_proxy_cert_list | unique | join(",") }}
+  args:
+    creates: "{{ inventory_dir }}/cfc-certs/front/front-proxy-ca.pem"

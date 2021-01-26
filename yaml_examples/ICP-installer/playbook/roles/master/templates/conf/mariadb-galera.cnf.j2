@@ -1,0 +1,14 @@
+[server]
+bind-address="0.0.0.0"
+binlog_format="row"
+default_storage_engine="InnoDB"
+innodb_autoinc_lock_mode="2"
+innodb_locks_unsafe_for_binlog="1"
+
+[galera]
+wsrep_on="on"
+wsrep_provider="/usr/lib/libgalera_smm.so"
+wsrep_cluster_address=gcomm://{{ groups['master'] | join(',') }}
+wsrep_cluster_name="my_wsrep_cluster"
+wsrep_sst_method="rsync"
+wsrep_node_address={{ inventory_hostname }}

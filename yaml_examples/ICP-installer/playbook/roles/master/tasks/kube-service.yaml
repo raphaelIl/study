@@ -1,0 +1,12 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating Kubernetes pods directory
+  file: path=/etc/cfc/pods state=directory mode=0700
+
+- name: Creating Kubernetes services file
+  template: src=pods/master.json.j2 dest=/etc/cfc/pods/master.json mode=0600

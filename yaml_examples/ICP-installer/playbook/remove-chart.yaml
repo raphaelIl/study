@@ -1,0 +1,19 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Removing chart
+  hosts: localhost
+  serial: "{{ rolling_update_serial | default(0) }}"
+
+  tasks:
+    - import_role:
+        name: common
+    - import_role:
+        name: kubectl-config
+    - import_role:
+        name: helm-config
+    - include_role:
+        name: remove-addon

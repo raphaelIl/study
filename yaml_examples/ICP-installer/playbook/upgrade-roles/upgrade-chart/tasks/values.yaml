@@ -1,0 +1,16 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Ensuring values directory exist
+  file: path="{{ inventory_dir }}/.upgrade/{{ item.key }}" state=directory mode=0755
+  when: not (management_services[item.key] is defined and management_services[item.key] == "disabled")
+  with_dict: "{{ helm_charts }}"
+
+- name: Generating values.yaml for chart
+  template: src=values.yaml.j2 dest="{{ inventory_dir }}/.upgrade/{{ item.key }}/values.yaml" mode=0644
+  when: not (management_services[item.key] is defined and management_services[item.key] == "disabled")
+  with_dict: "{{ helm_charts }}"

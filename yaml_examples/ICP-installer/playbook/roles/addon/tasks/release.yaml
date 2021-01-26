@@ -1,0 +1,70 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+## Creating resoureces for charts
+- name: Ensuring {{ key }} resource directory exist
+  file: path="{{ inventory_dir }}/.addon/{{ key }}" state=directory mode=0755
+
+- name: Getting resource file for {{ key }} chart
+  stat:
+    path: "{{ role_path }}/templates/{{ key }}.yaml.j2"
+  register: res_results
+
+- name: Generating resource file for {{ key }} chart
+  template: src="{{ key }}.yaml.j2" dest="{{ inventory_dir }}/.addon/{{ key }}/resources.yaml" mode=0644
+  when: res_results.stat.exists == True
+
+- name: Creating resources for {{ key }} chart
+  shell: kubectl -n {{ value.namespace }} apply -f .addon/{{ key }}/resources.yaml
+  args:
+    chdir: "{{ inventory_dir }}"
+    executable: /bin/bash
+  when: res_results.stat.exists == True
+
+## Creating values.yaml for charts
+- name: Generating values.yaml for {{ key }} chart
+  template:
+    src: "{% if value.use_custom_template is defined and value.use_custom_template %}{{ key }}-values.yaml.j2{% else %}values.yaml.j2{% endif %}"
+    dest: "{{ inventory_dir }}/.addon/{{ key }}/values.yaml"
+    mode: 0644
+
+## Installing charts
+- name: Installing {{ key }} chart
+  shell: |
+    filename="{{ value.path }}"
+    if [[ -d "{{ value.path }}" ]]; then
+      filename=$(ls {{ value.path }}/*.tgz | tail -1)
+    fi
+    ret=0
+    if helm status --tls {{ key }} &>/dev/null && helm status --tls {{ key }} | grep -q 'STATUS: FAILED'; then
+      rev=$(helm list --tls {{ key }} | awk '{if($1 == "{{ key }}"){print $2;exit}}')
+      if [[ "$rev" == "1" ]]; then
+        helm delete --tls --purge --timeout={{ helm_timeout }} {{ key }}
+        ret=$?
+        sleep 5
+      fi
+    fi
+    if ! helm status --tls {{ key }} &>/dev/null; then
+      helm upgrade --tls {{ helm_args.install[key] | default([]) | join(' ') }} --install --force --timeout={{ helm_timeout }} --namespace={{ value.namespace }} -f .addon/{{ key }}/values.yaml {{ key }} $filename
+      ret=$?
+    fi
+    if [[ $ret -ne 0 ]]; then
+      tiller_pod=$(kubectl -n kube-system get pods -l app=helm,name=tiller -o jsonpath="{.items[0].metadata.name}")
+      kubectl -n kube-system logs $tiller_pod &> {{ inventory_dir }}/logs/$tiller_pod
+      echo "============================================================"
+      echo "Tiller log can be found under cluster/logs/$tiller_pod"
+      echo "============================================================"
+    fi
+    exit $ret
+  args:
+    warn: false
+    chdir: "{{ inventory_dir }}"
+    executable: /bin/bash
+  register: result
+  until: result|succeeded
+  retries: 5
+  delay: 30

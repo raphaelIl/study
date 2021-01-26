@@ -1,0 +1,14 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking for the network pre-check file
+  local_action: stat path="{{ playbook_dir }}/roles/network-check/tasks/{{ network_type }}.yaml"
+  register: network_check_file
+  run_once: true
+
+- include_tasks: "{{ network_type }}.yaml"
+  when: network_check_file.stat.exists

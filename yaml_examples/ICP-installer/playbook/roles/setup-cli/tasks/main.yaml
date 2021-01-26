@@ -1,0 +1,41 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Downloading client binaries to master nodes
+  get_url:
+    url: "https://{{ cluster_internal_address }}:{{ router_https_port }}/api/cli/{{ item.src }}"
+    dest: "/usr/local/bin/{{ item.dest }}"
+    mode: 0755
+    force: yes
+    validate_certs: no
+  loop:
+    - {"src": "cloudctl-linux-{{ ansible_architecture|node_arch }}", "dest": "cloudctl"}
+    - {"src": "istioctl-linux-{{ ansible_architecture|node_arch }}", "dest": "istioctl"}
+  register: result
+  until: result|succeeded
+  retries: 10
+  delay: 60
+
+- name: Downloading helm to master nodes
+  get_url:
+    url: "https://{{ cluster_internal_address }}:{{ router_https_port }}/api/cli/helm-linux-{{ ansible_architecture|node_arch }}.tar.gz"
+    dest: /tmp/helm.tgz
+    force: yes
+    validate_certs: no
+  register: result
+  until: result|succeeded
+  retries: 10
+  delay: 60
+
+- name: Unpacking helm on master nodes
+  shell: |
+    arch=$(uname -m | sed 's/x86_64/amd64/g')
+    tar -xf /tmp/helm.tgz linux-$arch/helm --strip-components=1
+  args:
+    warn: false
+    chdir: /usr/local/bin
+    executable: /bin/bash

@@ -1,0 +1,46 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Ensuring kubelet install dir exists
+  file: path=/opt/kubernetes state=directory mode=0755
+
+- name: Copying hyperkube onto operating system
+  shell: docker run --rm -v /opt/kubernetes/:/data:z {{ k8s_image }} sh -c 'cp -f /hyperkube /data/'
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5
+
+- name: Check that nsenter exists
+  stat:
+    path: /usr/bin/nsenter
+  register: stat_nsenter
+
+- name: Copying nsenter onto operating system
+  shell: docker run --rm -v /usr/bin:/data:z {{ k8s_image }} sh -c 'cp -f /usr/bin/nsenter /data/'
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5
+  when: stat_nsenter.stat.exists == False
+
+- block:
+    - name: Check that ipvsadm exists
+      stat:
+        path: "{% if ansible_distribution == 'Ubuntu' %}/sbin/ipvsadm{% else %}/usr/sbin/ipvsadm{% endif %}"
+      register: stat_ipvsadm
+
+    - name: install ipvsadm
+      package:
+        name: ipvsadm
+        state: present
+      when: stat_ipvsadm.stat.exists == False
+      ignore_errors: true
+  when: ("--proxy-mode=ipvs" in kube_proxy_extra_args)
+
+- name: Installing kubelet service
+  template: src=kubelet.service.j2 dest=/etc/systemd/system/kubelet.service mode=0644

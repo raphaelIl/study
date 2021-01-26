@@ -1,0 +1,21 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: scan storage class yaml files
+  shell: "echo {{ item }} :`grep   'kind:' {{ item }}  | grep -v StorageClass | wc -l`"
+  register: filelist
+  with_fileglob:
+    - "{{ inventory_dir }}/misc/storage_class/*.yaml"
+
+- name: get storage class file facts
+  set_fact:
+    sc_files: "{{ sc_files | default([]) }} + [ {'file': '{{ item.item }}' , 'count': '{{ item.stdout.split(\":\")[1] }}' } ]"
+  with_items: "{{ filelist.results }}"
+
+- name: create storage class
+  shell: "kubectl apply --force --overwrite=true  -f {{ item.file }}"
+  when: item.count == "0"
+  with_items: "{{ sc_files | default([]) }}"

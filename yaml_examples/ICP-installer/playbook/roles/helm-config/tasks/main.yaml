@@ -1,0 +1,22 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Setting up Helm cli
+  shell: |
+    helm init --client-only --skip-refresh
+    export HELM_HOME=~/.helm
+    cp {{ inventory_dir }}/cfc-certs/helm/admin.crt $HELM_HOME/cert.pem
+    cp {{ inventory_dir }}/cfc-certs/helm/admin.key $HELM_HOME/key.pem
+    kubectl -n kube-system get pods -l app=helm,name=tiller
+    helm list --tls
+  args:
+    warn: false
+    executable: /bin/bash
+  register: result
+  until: result|succeeded
+  retries: 10
+  delay: 5

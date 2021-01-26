@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redmine-pv
+  labels:
+    type: local
+spec:
+  # storageClassName: test
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /root/tmp/data/redmine
+  persistentVolumeReclaimPolicy: Recycle
+  claimRef:
+    namespace: test
+    name: redmine-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redmine-pv-claim
+  namespace: test
+  labels:
+    app: redmine
+spec:
+  # storageClassName: test
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redmine-svc
+  namespace: test
+  labels:
+    app: redmine
+spec:
+  ports:
+  - name: redmine-web
+    port: 80
+    protocol: TCP
+    targetPort: 80
+    nodePort: 32000
+  selector:
+    app: redmine
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redmine-deploy
+#  namespace: services
+  namespace: test
+  labels:
+    app: redmine
+spec:
+  strategy:
+    type: Recreate
+#  replicas: 1
+  selector:
+    matchLabels:
+      app: redmine
+  template:
+    metadata:
+      labels:
+        app: redmine
+    spec:
+      containers:
+      - image: sameersbn/redmine:3.4.6
+        imagePullPolicy: IfNotPresent
+        name: redmine
+        env:
+        - name: DB_ADAPTER
+          value: "mysql2"
+        - name: DB_HOST
+          value: "mysql"
+        - name: DB_PORT
+          value: "3306"
+        - name: DB_USER
+          value: "root"
+        - name: DB_PASS
+          value: "password"
+        - name: DB_NAME
+#         value: "redmine_production"
+          value: "mission"
+#        - name: REDMINE_PORT
+#          value: "80"
+#        - name: REDMINE_HTTPS
+#          value: "false"
+#        - name: REDMINE_SUDO_MODE_ENABLED
+#          value: "false"
+        ports:
+        - containerPort: 32000
+
+        volumeMounts:
+            - name: redmine
+              #mountPath: /home/redmine/data
+              mountPath: /root/tmp/data/redmine
+      volumes:
+        - name: redmine
+          persistentVolumeClaim:
+            claimName: redmine-pv-claim
+
+#      restartPolicy: Always
+status: {}

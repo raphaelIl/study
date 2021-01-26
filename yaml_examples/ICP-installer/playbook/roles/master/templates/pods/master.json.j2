@@ -1,0 +1,253 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "k8s-master",
+    "namespace": "kube-system",
+    "annotations": {
+      "scheduler.alpha.kubernetes.io/critical-pod": ""
+    }
+  },
+  "spec":{
+    "hostNetwork": true,
+    "dnsPolicy": "ClusterFirstWithHostNet",
+    "containers":[
+      {
+        "name": "kms-plugin",
+        "env": [
+          {
+            "name": "config_file",
+            "value": "/etc/cfc/conf/kmsplugin-config.yaml"
+          }
+        ],
+        "image": "{{ kmsplugin_image }}",
+        "imagePullPolicy": "IfNotPresent",
+        "livenessProbe": {
+	        "failureThreshold": 3,
+	        "httpGet": {
+	          "path": "/healthz/liveness",
+	          "port": 8081,
+	          "scheme": "HTTP"
+          },
+	        "initialDelaySeconds": 120,
+	        "periodSeconds": 300,
+	        "successThreshold": 1,
+	        "timeoutSeconds": 1
+	      },
+        "readinessProbe": {
+	        "failureThreshold": 3,
+	        "httpGet": {
+	          "path": "/healthz/readiness",
+	          "port": 8081,
+	          "scheme": "HTTP"
+	        },
+	        "initialDelaySeconds": 5,
+	        "periodSeconds": 30,
+	        "successThreshold": 1,
+	        "timeoutSeconds": 1
+        },
+        "resources": {
+	        "requests": {
+	          "cpu": "5m",
+	          "memory": "10Mi"
+          }
+	      },
+        "volumeMounts": [
+          {
+            "name": "kms-socket",
+            "mountPath": "/tmp"
+          },
+          {
+            "name": "audit",
+            "mountPath": "/var/lib/icp/audit"
+          },
+          {
+            "name": "data",
+            "mountPath": "/etc/cfc/conf"
+          }
+        ]
+      },
+      {
+        "name": "controller-manager",
+        "image": "{{ k8s_image }}",
+        "imagePullPolicy": "IfNotPresent",
+        "command": [
+          "/hyperkube",
+          "controller-manager",
+          "--master=https://127.0.0.1:{{ kube_apiserver_secure_port }}",
+          "--service-account-private-key-file=/etc/cfc/conf/server.key",
+          "--feature-gates=TaintBasedEvictions=true,TaintNodesByCondition=true",
+          "--root-ca-file=/etc/cfc/conf/ca.crt",
+          "--min-resync-period=3m",
+          "--cluster-cidr={{ network_cidr }}",
+          "--cluster-signing-cert-file=/etc/cfc/conf/ca.crt",
+          "--cluster-signing-key-file=/etc/cfc/conf/ca.key",
+          "--use-service-account-credentials=true",
+          "--kubeconfig=/etc/cfc/conf/kube-controller-manager-config.yaml",
+          "--pv-recycler-pod-template-filepath-hostpath=/etc/cfc/conf/recycler.yaml",
+          "--pv-recycler-pod-template-filepath-nfs=/etc/cfc/conf/recycler.yaml",
+          "--experimental-cluster-signing-duration=8760h0m0s",
+          "--controllers=*,tokencleaner",
+          "--v=2",
+          {% if kube_controller_manager_extra_args | length > 0 -%}
+          {% for item in kube_controller_manager_extra_args -%}
+          "{{ item }}",
+          {% endfor -%}
+          {% endif -%}
+          {% if cloud_provider != 'none' -%}
+          "--cloud-provider={{ cloud_provider }}",
+          "--cloud-config={{ cloud_provider_conf }}{% if cloud_provider == 'azure' -%}-controller{% endif -%}",
+          {% endif -%}
+          "--leader-elect=true",
+          "--profiling=false",
+          "--terminated-pod-gc-threshold=5000",
+          "--horizontal-pod-autoscaler-use-rest-clients=true"
+        ],
+        "volumeMounts": [
+          {
+            "name": "data",
+            "mountPath": "/etc/cfc/conf"
+          },
+          {
+            "name": "audit",
+            "mountPath": "/var/lib/icp/audit"
+          },
+          {
+            "name": "flexvolume-dir",
+            "mountPath": "/usr/libexec/kubernetes/kubelet-plugins/volume/exec"
+          }
+        ]
+      },
+      {
+        "name": "apiserver",
+        "image": "{{ k8s_image }}",
+        "imagePullPolicy": "IfNotPresent",
+        "command": [
+          "/hyperkube",
+          "apiserver",
+          "--secure-port={{ kube_apiserver_secure_port }}",
+          "--bind-address=0.0.0.0",
+          "--advertise-address={{ inventory_hostname }}",
+          "--endpoint-reconciler-type=lease",
+          "--insecure-port=0",
+          "--etcd-servers={{ cluster_etcd_url }}",
+          "--etcd-cafile=/etc/cfc/conf/etcd/ca.pem",
+          "--etcd-certfile=/etc/cfc/conf/etcd/client.pem",
+          "--etcd-keyfile=/etc/cfc/conf/etcd/client-key.pem",
+          "--runtime-config=batch/v2alpha1,extensions/v1beta1=true,extensions/v1beta1/podsecuritypolicy=true,admissionregistration.k8s.io/v1alpha1",
+          "--enable-admission-plugins=Initializers,NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,PodSecurityPolicy,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota,Priority,EventRateLimit,PodNodeSelector,PodTolerationRestriction",
+          "--admission-control-config-file=/etc/cfc/conf/admission-control-config.yaml",
+          "--repair-malformed-updates=false",
+          "--oidc-issuer-url=https://{{ cluster_CA_domain }}:9443/oidc/endpoint/OP",
+          "--oidc-client-id={{ wlp_client_id }}",
+          "--oidc-ca-file=/etc/cfc/conf/ca.crt",
+          "--oidc-groups-claim=teamRoleMappings",
+          "--tls-cert-file=/etc/cfc/conf/server.cert",
+          "--tls-private-key-file=/etc/cfc/conf/server.key",
+          "--kubelet-client-certificate=/etc/cfc/conf/kubelet-client.crt",
+          "--kubelet-client-key=/etc/cfc/conf/kubelet-client.key",
+          "--client-ca-file=/etc/cfc/conf/ca.crt",
+          "--service-account-key-file=/etc/cfc/conf/server.key",
+          "--authorization-mode=RBAC",
+          "--min-request-timeout=300",
+          "--allow-privileged",
+          "--requestheader-client-ca-file=/etc/cfc/conf/front/front-proxy-ca.pem",
+          "--requestheader-username-headers=X-Remote-User",
+          "--requestheader-group-headers=X-Remote-Group",
+          "--requestheader-allowed-names={{ cluster_CA_domain }},aggregator",
+          "--requestheader-extra-headers-prefix=X-Remote-Extra-",
+          "--proxy-client-cert-file=/etc/cfc/conf/front/front-proxy-client.pem",
+          "--proxy-client-key-file=/etc/cfc/conf/front/front-proxy-client-key.pem",
+          {% if auditlog_enabled == true -%}
+          "--audit-policy-file=/etc/cfc/conf/audit-policy.yaml",
+          "--audit-log-path=/var/lib/icp/audit/audit.log",
+          "--audit-log-format=json",
+          "--audit-log-maxage=30",
+          "--audit-log-maxbackup=10",
+	  "--audit-log-maxsize=100",
+          {% endif -%}
+          "--enable-bootstrap-token-auth",
+          "--v=2",
+          {% if kube_apiserver_extra_args | length > 0 -%}
+          {% for item in kube_apiserver_extra_args -%}
+          "{{ item }}",
+          {% endfor -%}
+          {% endif -%}
+          {% if cloud_provider != 'none' -%}
+          "--cloud-provider={{ cloud_provider }}",
+          "--cloud-config={{ cloud_provider_conf }}",
+          {% endif -%}
+          "--profiling=false",
+          "--service-cluster-ip-range={{ service_cluster_ip_range }}"
+        ],
+        "volumeMounts": [
+          {
+            "name": "data",
+            "mountPath": "/etc/cfc/conf"
+          },
+          {
+            "name": "audit",
+            "mountPath": "/var/lib/icp/audit"
+          },
+          {
+            "mountPath":"/tmp",
+            "name":"kms-socket"
+          }
+        ]
+      },
+      {
+        "name": "scheduler",
+        "image": "{{ k8s_image }}",
+        "imagePullPolicy": "IfNotPresent",
+        "command": [
+          "/hyperkube",
+          "scheduler",
+          "--master=https://127.0.0.1:{{ kube_apiserver_secure_port }}",
+          "--feature-gates=TaintNodesByCondition=true",
+          "--kubeconfig=/etc/cfc/conf/kube-scheduler-config.yaml",
+          "--policy-config-file=/etc/cfc/conf/scheduler-policy-config.json",
+          "--use-legacy-policy-config=true",
+          "--v=2",
+          {% if kube_scheduler_extra_args | length > 0 -%}
+          {% for item in kube_scheduler_extra_args -%}
+          "{{ item }}",
+          {% endfor -%}
+          {% endif -%}
+          "--profiling=false",
+          "--leader-elect=true"
+        ],
+        "volumeMounts": [
+          {
+            "name": "data",
+            "mountPath": "/etc/cfc/conf"
+          }
+        ]
+      }
+    ],
+    "volumes": [
+      {
+        "name": "data",
+        "hostPath": {
+          "path": "/etc/cfc/conf"
+        }
+      },
+      {
+        "name": "audit",
+        "hostPath": {
+          "path": "/var/lib/icp/audit"
+        }
+      },
+      {
+        "name": "flexvolume-dir",
+        "hostPath": {
+          "path": "/usr/libexec/kubernetes/kubelet-plugins/volume/exec",
+          "type": "DirectoryOrCreate"
+        }
+      },
+      {
+        "emptyDir": {},
+        "name":"kms-socket"
+      }
+    ]
+  }
+}

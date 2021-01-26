@@ -1,0 +1,184 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- block:
+
+    - name: Calico Validation - Initializing interface list to be verified
+      set_fact:
+        interfaces_to_verify: []
+        interface_mtu_dict: {}
+
+    - name: Checking if iproute2 package is installed
+      shell: command -v ip &>/dev/null && echo true || echo false
+      args:
+        executable: /bin/bash
+      register: iproute2_installed
+
+    - name: Reporting if iproute2 package is not installed
+      fail: msg="Required package 'iproute2' is not installed"
+      when: not iproute2_installed.stdout|bool
+
+    - block:
+        - name: Calico Validation - Finding Interface when autodetection_method is first-found
+          set_fact:
+            interface_regex: '^docker.*|^cbr.*|^dummy.*|^virbr.*|^lxcbr.*|^veth.*|^lo|^cali.*|^tunl.*|^flannel.*'
+
+        - name: Calico Validation - Updating regex string to match interfaces to be excluded
+          set_fact:
+            interface_regex: "{{ interface_regex + '|' + item }}"
+          with_items: "{{ calico_exclude_interfaces_regex_list }}"
+
+        - name: Calico Validation - Getting list of interfaces to be considered
+          set_fact:
+            interfaces_to_verify: "{{ interfaces_to_verify + [item] }}"
+          when:
+            - not ( item | match(interface_regex) )
+            - hostvars[inventory_hostname]['ansible_'~item|regex_replace('-','_')]['mtu'] is defined
+            - hostvars[inventory_hostname]['ansible_'~item|regex_replace('-','_')]['ipv4'] is defined
+          with_items:
+            - "{{ ansible_interfaces }}"
+
+        - name: Calico Validation - Excluding default interface if defined
+          set_fact:
+            interfaces_to_verify: "{{ interfaces_to_verify | difference([ansible_default_ipv4.interface])}}"
+          when: (interfaces_to_verify | length) > 1 and ansible_default_ipv4.interface is defined
+
+      when: calico_ip_autodetection_method =='first-found'
+
+    - block:
+        - name: "Calico Validation - Finding Interface reg-ex when autodetection_method is interface(reg-ex)"
+          set_fact: reg_ex="{{ calico_ip_autodetection_method.split('=')[1].split(',') }}"
+
+        - name: Calico Validation -  Finding Interface when autodetection_method is interface(reg-ex)
+          set_fact:
+            interfaces_to_verify: "{{ interfaces_to_verify + [item.1] }}"
+          with_nested:
+            - "{{ reg_ex }}"
+            - "{{ ansible_interfaces }}"
+          when:
+            - item.1 | match(item.0)
+            - hostvars[inventory_hostname]['ansible_'~item.1|regex_replace('-','_')]['mtu'] is defined
+            - hostvars[inventory_hostname]['ansible_'~item.1|regex_replace('-','_')]['ipv4'] is defined
+
+      when: calico_ip_autodetection_method | match("interface")
+
+    - block:
+        - name: Calico Validation - Finding Domain/IP when autodetection_method is can-reach
+          set_fact: domain="{{ calico_ip_autodetection_method.split('=')[1] }}"
+
+        - name: Calico Validation -  Finding IP for the Domain when autodetection_method is can-reach
+          shell: getent ahosts {{ domain }} | awk '{print $1; exit}'
+          register: domain_ip
+
+        - name: Calico Validation - Finding Interface when autodetection_method is can-reach
+          shell: ip route get {{domain_ip.stdout}} | grep -Po '(?<=(dev )).*' | awk '{print $1}'
+          register: interface_msg
+
+        - name: Calico Validation - Finding Interface when lo is found
+          shell: ip route show src {{ inventory_hostname }} | grep -Po '(?<=(dev )).*' | awk '{print $1; exit}'
+          register: interface_local
+          when: interface_msg.stdout == 'lo'
+
+        - name: Calico Validation - Finding Interface when autodetection_method is can-reach
+          set_fact:
+            interfaces_to_verify: "{% if interface_msg.stdout == 'lo' %}{{ interfaces_to_verify + [interface_local.stdout] }}{% else %}{{ interfaces_to_verify + [interface_msg.stdout] }}{% endif %}"
+
+      when: calico_ip_autodetection_method  | match("can-reach")
+
+    - name: Calico Validation - Finding MTU for the detected Interface(s)
+      set_fact:
+        interface_mtu_dict: "{{ interface_mtu_dict | combine( {item : hostvars[inventory_hostname]['ansible_'~item|regex_replace('-','_')]['mtu'] | int }) }}"
+      when:
+        - hostvars[inventory_hostname]['ansible_'~item|regex_replace('-','_')]['mtu'] is defined
+      with_items: "{{ interfaces_to_verify }}"
+
+    - name: Calico Validation - Reporting if no interface detected through auto-detection
+      fail: msg="The specified calico_ip_autodetection_method = '{{ calico_ip_autodetection_method }}' could not detect any interface with IP for management"
+      when: (interface_mtu_dict | length) == 0
+
+    - name: Calico Validation - Updating MTU correction(20 bytes) when IP-in-IP is enabled
+      set_fact:
+        mtu_correction: "{{ mtu_correction | int + 20 }}"
+
+    - name: Calico Validation - Verifying MTU size when autodetection_met
+      fail:
+        msg:
+          - "User specified Calico Tunnel MTU({{calico_tunnel_mtu}}) should be {{mtu_correction}} less than device MTU for the following auto-detected interface(s) : {{interface_mtu_dict}}"
+          - "Note: If you want to continue with auto-detection method correct the MTU for all the auto-detected interfaces OR configure 'calico_ip_autodetection_method' to select the desired interface with appropriate MTU size"
+      when: ( calico_tunnel_mtu | int ) > (( interface_mtu_dict[item] | int ) - (mtu_correction | int))
+      with_items:
+        - "{{ interface_mtu_dict.keys() }}"
+
+  when: (calico_ipip_enabled|bool)
+
+- name: Calico Validation - Preparing list of required kernel modules
+  set_fact:
+    kernel_modules:
+      - ip_tables
+      - ip6_tables
+      - ip_set
+      - x_tables
+      - xt_mark
+      - xt_addrtype
+      - xt_multiport
+      - nfnetlink
+
+- name: Calico Validation - Appending list of required IP tunnel kernel modules
+  set_fact:
+    kernel_modules: "{{kernel_modules + [item]}}"
+  when: (calico_ipip_enabled|bool)
+  with_items:
+    - ipip
+    - ip_tunnel
+    - tunnel4
+
+- name: Calico Validation - Get builtin kernel module list
+  shell: cat "/lib/modules/{{ansible_kernel}}/modules.builtin"
+  register: builtin_modules
+  ignore_errors: true
+
+- name: Calico Validation - Builtin kernel module list was not obtained
+  debug: msg="WARNING - Unable to obtain the list of builtin kernel modules"
+  when: builtin_modules.rc != 0
+
+- name: Calico Validation - Initializing empty list to filter out builtin modules
+  set_fact:
+    modules_tbl_list: []
+    failed_module_list: []
+
+- name: Calico Validation - Filtering out builtin kernel modules
+  set_fact:
+    modules_tbl_list: "{{modules_tbl_list + [item]}}"
+  with_items: "{{kernel_modules}}"
+  when: item not in builtin_modules.stdout
+
+- name: Calico Validation - Loading kernel modules
+  modprobe: name={{item}}
+  with_items: "{{modules_tbl_list}}"
+  register: modprobe_result
+  ignore_errors: true
+
+- name: Calico Validation - Checking if modprobe was successful
+  set_fact:
+    failed_module_list: "{{failed_module_list + [item.item]}}"
+  when: item.failed
+  with_items: "{{modprobe_result.results}}"
+
+- block:
+    - name: Calico Validation - Reporting if required modules loading is unsuccessfull
+      fail: msg="Unable to load modules {{ failed_module_list }}"
+      when: calico_strict_validation
+
+    - name: Calico Validation - Warning if required modules loading is unsuccessfull
+      debug: msg="WARNING - Unable to load modules {{ failed_module_list }} "
+      when: not calico_strict_validation
+
+  when: failed_module_list | length > 0
+
+- name: Calico Validation - Making kernel modules persistent across reboot
+  lineinfile: dest=/etc/modules-load.d/modules.conf create=yes state=present line={{item}}
+  with_items: "{{modules_tbl_list | difference(failed_module_list)}}"

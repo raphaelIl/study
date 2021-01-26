@@ -1,0 +1,35 @@
+kind: KubeletConfiguration
+apiVersion: kubelet.config.k8s.io/v1beta1
+staticPodPath: "/etc/cfc/pods"
+rotateCertificates: true
+authentication:
+  x509:
+    clientCAFile: "/etc/cfc/kubelet/ca.crt"
+  webhook:
+    enabled: true
+  anonymous:
+    enabled: false
+authorization:
+  mode: AlwaysAllow
+clusterDomain: "{{ cluster_domain }}"
+clusterDNS:
+  - "{{ cluster_dns }}"
+cgroupDriver: "{{ cgdriver }}"
+{% if inventory_hostname not in groups['worker'] -%}
+evictionHard:
+  imagefs.available: "100Mi"
+  memory.available: "100Mi"
+  nodefs.available: "100Mi"
+  nodefs.inodesFree: "5%"
+evictionMinimumReclaim:
+  imagefs.available: "100Mi"
+{% endif -%}
+featureGates:
+  ExperimentalCriticalPodAnnotation: true
+readOnlyPort: 0
+protectKernelDefaults: true
+maxPods: 500
+podsPerCore: 10
+failSwapOn: false
+streamingConnectionIdleTimeout: "4h0m0s"
+eventRecordQPS: 0

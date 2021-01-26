@@ -1,0 +1,15 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking environment isolation prerequisites
+  hosts: localhost
+  max_fail_percentage: 0
+  any_errors_fatal: true
+
+  roles:
+    - {role: namespace-isolation-check, when: skip_pre_check != true and (isolated_namespaces|length > 0)}
+    - {role: proxy-isolation-check, when: skip_pre_check != true and (isolated_proxies|length > 0)}

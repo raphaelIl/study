@@ -1,0 +1,23 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Rollbacking chart
+  hosts: localhost
+  serial: "{{ rolling_update_serial | default(0) }}"
+
+  roles:
+    - common
+    - kubectl-config
+    - helm-config
+    - {role: rollback-chart, when: phase5_addon is defined, helm_charts: "{{ phase5_addon }}"}
+    - {role: rollback-chart, when: phase4_addon is defined, helm_charts: "{{ phase4_addon }}"}
+    - {role: rollback-chart, when: phase3_addon is defined, helm_charts: "{{ phase3_addon }}"}
+    - {role: rollback-chart, when: phase2_addon is defined, helm_charts: "{{ phase2_addon }}"}
+    - {role: rollback-chart, when: phase1_addon is defined, helm_charts: "{{ phase1_addon }}"}
+    - {role: rollback-chart, when: infra2_addon is defined, helm_charts: "{{ infra2_addon }}"}
+    - {role: rollback-chart, when: infra_addon is defined, helm_charts: "{{ infra_addon }}"}
+    - rollback-tiller

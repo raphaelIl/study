@@ -1,0 +1,16 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Verifying namespaces in isolated namespaces
+  fail: msg="Namespace {{item.namespace}} should be different from the platform namespaces."
+  when: item.namespace in restrict_namespace_isolation
+  loop: "{{isolated_namespaces}}"
+
+- name: Verifying host-groups in isolated namespaces
+  fail: msg="Hostgroup {{item.hostgroup}} is not defined"
+  when: groups['hostgroup-' + item.hostgroup] is not defined
+  loop: "{{isolated_namespaces}}"

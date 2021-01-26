@@ -1,0 +1,16 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Create Root CA secret
+  shell: |
+    kubectl -n kube-system create secret tls {{ cluster_ca_secret }} \
+      --cert=root-ca/ca.crt \
+      --key=root-ca/ca.key.p1 \
+      --dry-run -o yaml | kubectl apply -f -
+  args:
+    chdir: "{{ inventory_dir }}/cfc-certs"
+    executable: /bin/bash

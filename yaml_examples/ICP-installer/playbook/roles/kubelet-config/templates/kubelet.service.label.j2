@@ -1,0 +1,19 @@
+{%- macro label_rely_master(tag) -%}
+  {%- if groups[tag] is not defined -%}
+    {%- if inventory_hostname in groups['master'] -%}
+      {%- if node_labels[tag] is defined %}{{ node_labels[tag] | join(",") }},{% endif -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- for gname in group_names %}
+    {%- if node_labels[gname] is defined %}{{ node_labels[gname] | join(",") }},{% endif -%}
+    {%- if gname | regex_search('hostgroup-') -%}
+      {%- if node_labels[gname] is not defined -%}
+        {{ gname | replace("hostgroup-","") }}=true,hostgroup={{ gname | replace("hostgroup-","") }},node-role.kubernetes.io/{{ gname | replace("hostgroup-","") }}=true,
+      {%- endif -%}
+    {%- endif -%}
+{%- endfor -%}
+
+{{- label_rely_master('etcd') -}}
+{{- label_rely_master('management') -}}

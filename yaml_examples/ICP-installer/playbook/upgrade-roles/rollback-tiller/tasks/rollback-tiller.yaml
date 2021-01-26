@@ -1,0 +1,18 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Rollbacking tiller
+  shell: |
+    if [[ -e "{{ inventory_dir }}/cfc-components.{{ backup_version }}/tiller-config-secret.yaml" ]]; then
+      kubectl apply -f "{{ inventory_dir }}/cfc-components.{{ backup_version }}/tiller-config-secret.yaml"
+    fi
+    if [[ -e "{{ inventory_dir }}/cfc-components.{{ backup_version }}/tiller.yaml" ]]; then
+      kubectl apply -f "{{ inventory_dir }}/cfc-components.{{ backup_version }}/tiller.yaml"
+    fi
+  args:
+    executable: /bin/bash
+  ignore_errors: true

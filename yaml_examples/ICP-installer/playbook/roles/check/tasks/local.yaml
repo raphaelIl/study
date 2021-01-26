@@ -1,0 +1,70 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Validating cluster_CA_domain
+  fail: msg="{{ cluster_CA_domain }} is not a valid domain"
+  when: not (cluster_CA_domain | regex_search('\.[a-z]+$'))
+
+- name: Validating hosts file
+  fail: msg="Only IP address is allowed in hosts file"
+  when: not (item | ipaddr)
+  with_items: "{{ groups['all'] }}"
+
+- name: Validating Master nodes number
+  fail: msg="The environment only allows 1, 3, 5 or 7 master nodes"
+  when: (master_num|int) not in [1, 3, 5, 7]
+
+- name: Validating Proxy nodes number
+  fail: msg="Can't find proxy nodes"
+  when: (groups['proxy'] | default([]) | length) < 1
+
+- name: Validating Etcd nodes number
+  fail: msg="The etcd nodes number must be odd"
+  when: (etcd_num|int % 2) != 1
+
+- name: Validating master HA configuration
+  fail: msg="You must set cluster_vip in HA environment."
+  when:
+    - master_num|int > 1
+    - cluster_vip == '127.0.1.1'
+    - cluster_lb_address == 'none'
+
+- name: Validating proxy HA configuration
+  fail: msg="You must set proxy_vip in HA environment."
+  when:
+    - proxy_num|int > 1
+    - proxy_vip == '127.0.1.1'
+    - proxy_lb_address == 'none'
+
+- name: Validating HA VIP configuration
+  fail: msg="cluster_vip and proxy_vip should no be same in HA environment."
+  when:
+    - master_num|int > 1
+    - cluster_lb_address == 'none'
+    - cluster_vip == proxy_vip
+
+- name: Validating HA Master node interface configuration
+  fail: msg="The network interface {{ vip_iface }} does not exist on your node."
+  when:
+    - master_num|int > 1
+    - inventory_hostname in master_nodes
+    - vip_iface not in ansible_interfaces
+    - cluster_lb_address == 'none'
+
+- name: Validating HA Proxy node interface configuration
+  fail: msg="The network interface {{ proxy_vip_iface }} does not exist on your node."
+  when:
+    - proxy_num|int > 1
+    - inventory_hostname in proxy_nodes
+    - proxy_vip_iface not in ansible_interfaces
+    - proxy_lb_address == 'none'
+
+- name: Validating VA service configuration
+  fail: msg="You must set \"va\" host group when enable \"vulnerability-advisor\" service"
+  when:
+    - not (management_services['vulnerability-advisor'] is defined and management_services['vulnerability-advisor'] == "disabled")
+    - va_num|int < 1

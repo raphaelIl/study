@@ -1,0 +1,19 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Getting images
+  hosts: all
+  serial: "{{ rolling_update_serial | default(0) }}"
+  max_fail_percentage: 1
+  any_errors_fatal: true
+
+  roles:
+    - common
+    - container-runtime
+    - {role: private-registry-pull-image, when: private_registry_enabled}
+    - {role: icp-registry-image, when: private_registry_enabled == false and image_repo != "ibmcom" and container_runtime == "docker"}
+    - {role: copy-nsxt-image, when: network_type == 'nsx-t'}

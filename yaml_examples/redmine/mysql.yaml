@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  # storageClassName: test1
+  hostPath:
+    path: /root/tmp/data/mysql
+  persistentVolumeReclaimPolicy: Recycle
+  claimRef:
+    namespace: test
+    name: mysql-pv-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+#  namespace: futuregen
+  namespace: test
+  labels:
+    app: mysql
+spec:
+  ports:
+  - name: mysql
+    port: 3306
+    targetPort: 3306
+  selector:
+    app: mysql
+  #type: NodePort
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim
+#  namespace: futuregen
+  namespace: test
+  #pvc에 네임스페이스를 할당하지 않았었다.
+  labels:
+    app: mysql
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # storageClassName: test1
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+#  namespace: futuregen
+  namespace: test
+  #당연히 얘도 네임스페이스 futuregen
+  labels:
+    app: mysql
+spec:
+  strategy:
+    type: Recreate
+#  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - image: mysql:5.7
+      #공식이미지니까 docker.hub에서 환경설정 옵션 읽어보기.
+        imagePullPolicy: IfNotPresent
+        name: mysql
+        env:
+        - name: MYSQL_USER
+          value: redmine
+        - name: MYSQL_PASSWORD
+          value: password
+        - name: MYSQL_DATABASE
+          value: mission
+        - name: MYSQL_ROOT_PASSWORD
+          value: password
+          
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+            - name: mysql
+              mountPath: /root/tmp/data/mysql
+      volumes:
+        - name: mysql
+          persistentVolumeClaim:
+            claimName: mysql-pv-claim
+#      restartPolicy: Always
+status: {}
+

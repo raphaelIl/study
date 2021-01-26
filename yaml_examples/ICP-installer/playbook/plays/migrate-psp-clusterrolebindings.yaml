@@ -1,0 +1,16 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Migrating Pod security policiy clusterrolebindings
+  hosts: localhost
+  any_errors_fatal: true
+
+  tasks:
+    - import_role:
+        name: migrate-psp-config
+      delegate_to: localhost
+      run_once: true

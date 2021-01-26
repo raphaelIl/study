@@ -1,0 +1,19 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Deploying environment isolation
+  hosts: localhost
+  max_fail_percentage: 0
+  any_errors_fatal: true
+
+  roles:
+    - common
+    - kubectl-config
+    - {role: waitfor, res_name: k8s}
+    - {role: tiller, when: isolated_proxies | length > 0}
+    - {role: helm-config, when: isolated_proxies | length > 0}
+    - {role: chart-repo, when: chart_repo is defined and isolated_proxies | length > 0, repos: "{{ chart_repo }}"}

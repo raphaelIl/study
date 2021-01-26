@@ -1,0 +1,29 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating kubelet work directory
+  file: path=/var/lib/kubelet state=directory mode=0755
+
+- name: Creating kubelet conf directory
+  file: path=/etc/cfc/kubelet state=directory mode=0700
+
+- name: Copying CA to kubelet conf directory
+  copy: src={{ inventory_dir }}/cfc-certs/root-ca/ca.crt dest=/etc/cfc/kubelet/ca.crt mode=0600
+
+- name: Copying kubelet certificate to kubelet conf directory
+  copy: src={{ inventory_dir }}/cfc-certs/kubernetes/{{ item }} dest=/etc/cfc/kubelet/{{ item }} mode=0600
+  loop:
+    - kubelet.crt
+    - kubelet.key
+  when: inventory_hostname in (master_nodes | union(etcd_nodes))
+
+- name: Creating kubeconfig file for kubelet
+  template: src=kubelet-config.j2 dest=/etc/cfc/kubelet/kubelet-config mode=0600
+  when: inventory_hostname in (master_nodes | union(etcd_nodes))
+
+- name: Creating kubelet service configuration file for kubelet
+  template: src=kubelet-service-config.j2 dest=/etc/cfc/kubelet/kubelet-service-config mode=0600

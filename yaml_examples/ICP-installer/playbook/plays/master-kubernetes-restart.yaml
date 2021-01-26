@@ -1,0 +1,24 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Restarting master kubernetes
+  hosts: master
+  any_errors_fatal: true
+  serial: "{{ rolling_update_serial | default(0) }}"
+
+  tasks:
+    - name: Restarting vip manager
+      shell: docker stop $(docker ps -f name=k8s_vip-script_k8s-master -f name=k8s_ucarp_k8s-master -f name=k8s_keepalived_k8s-master -q); true
+
+    - name: Restarting kubernetes apiserver, scheduler and controller-manager
+      shell: docker stop $(docker ps -f name=k8s_scheduler_k8s-master- -f name=k8s_controller-manager_k8s-master- -f name=k8s_apiserver_k8s-master- -q); true
+
+    - name: Waiting for Kubernetes to start
+      wait_for: host="{{ inventory_hostname }}" port={{ kube_apiserver_secure_port }} state=started timeout={{ wait_for_timeout }}
+
+    - name: Waiting for Kubernetes to start
+      wait_for: host="{{ cluster_internal_address }}" port={{ kube_apiserver_secure_port }} state=started timeout={{ wait_for_timeout }}

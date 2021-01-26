@@ -1,0 +1,21 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Disable firewall
+  shell: systemctl disable firewalld; true
+  args:
+    executable: /bin/bash
+
+- name: Getting Firewall rules
+  shell: (iptables -C FORWARD -j REJECT --reject-with icmp-host-prohibited || iptables -C INPUT -j REJECT --reject-with icmp-host-prohibited) || echo closed
+  args:
+    executable: /bin/bash
+  register: firewall_out
+
+- name: Validating Firewall rules
+  fail: msg="Please disable/stop your firewalld since this installation is in firewall disabled mode"
+  when: firewall_out.stdout != 'closed'

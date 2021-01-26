@@ -1,0 +1,27 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Unpatching the cluster
+  hosts: all
+  serial: "{{ rolling_update_serial | default(0) }}"
+  gather_facts: false
+
+  vars:
+    master_nodes: "{{ groups['master'] }}"
+    worker_nodes: "{{ groups['worker'] | default([]) }}"
+    proxy_nodes: "{{ groups['proxy'] | default([]) }}"
+    management_nodes: "{{ groups['management'] | default([]) }}"
+    local_node: "{{ master_nodes[0] }}"
+    patch_path: "{{ inventory_dir }}/patches"
+
+  roles:
+    - {role: unpatch, tags: ["unpatch-all"], patch_src_dir: "{{ patch_path }}/all", patch_dest_dir: "{{ patch_copy_path }}/all"}
+    - {role: unpatch, tags: ["unpatch-local"], when: inventory_hostname == local_node, delegate_to: localhost, patch_src_dir: "{{ patch_path }}/local", patch_dest_dir: "{{ patch_copy_path }}/local"}
+    - {role: unpatch, tags: ["unpatch-master"], when: inventory_hostname in master_nodes, patch_src_dir: "{{ patch_path }}/master", patch_dest_dir: "{{ patch_copy_path }}/master"}
+    - {role: unpatch, tags: ["unpatch-worker"], when: inventory_hostname in worker_nodes, patch_src_dir: "{{ patch_path }}/worker", patch_dest_dir: "{{ patch_copy_path }}/worker"}
+    - {role: unpatch, tags: ["unpatch-proxy"], when: inventory_hostname in proxy_nodes, patch_src_dir: "{{ patch_path }}/proxy", patch_dest_dir: "{{ patch_copy_path }}/proxy"}
+    - {role: unpatch, tags: ["unpatch-management"], when: inventory_hostname in management_nodes, patch_src_dir: "{{ patch_path }}/management", patch_dest_dir: "{{ patch_copy_path }}/management"}

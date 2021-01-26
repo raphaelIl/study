@@ -1,0 +1,68 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Gathering facts of installed strongswan
+  set_fact:
+    strongswan_inst_path: "/etc/"
+    ipsec_marker: "# {mark} ANSIBLE MANAGED ICP IPSEC CONFIG"
+
+- name: Setting variables for IPsec mesh configuration
+  set_fact:
+    ipsec_ca_cert: "ca.crt"
+    ipsec_client_key: "ipsec-mesh.key"
+    ipsec_left_cert: "ipsec-mesh.crt"
+    ipsec_left_node_ip: "{{ ipsec_dp_interface_ip }}"
+    ipsec_right_subnets: "{{ ipsec_mesh.subnets | join(',') }}"
+    ipsec_mesh_exclude_ips: "{{ ipsec_mesh.exclude_ips | join(',') }}"
+
+- name: Copying CA to ipsec.d/cacerts directory
+  copy: src={{inventory_dir}}/cfc-certs/root-ca/ca.crt dest={{strongswan_inst_path}}ipsec.d/cacerts/{{ipsec_ca_cert}} mode=0600
+
+- name: Copying client key to ipsec.d/private directory
+  copy: src={{inventory_dir}}/cfc-certs/ipsec/ipsec-mesh.key dest={{strongswan_inst_path}}ipsec.d/private/{{ipsec_client_key}} mode=0600
+
+- name: Copying client cert to ipsec.d/certs directory
+  copy: src={{inventory_dir}}/cfc-certs/ipsec/ipsec-mesh.crt dest={{strongswan_inst_path}}ipsec.d/certs/{{ipsec_left_cert}} mode=0600
+
+- name: Creating IPsec configuration and secrets from template
+  set_fact:
+    ipsec_conf_template: "{{ lookup('template', 'ipsec-strongswan.conf.j2') }}"
+    ipsec_secrets_template: "{{ lookup('template', 'ipsec-strongswan.secrets.j2') }}"
+
+- name: Ensure config-setup section exists
+  lineinfile:
+    path: "{{ strongswan_inst_path }}ipsec.conf"
+    regexp: 'config setup'
+    line: 'config setup'
+
+- name: Disabling unique ID check
+  lineinfile:
+    path: "{{ strongswan_inst_path }}ipsec.conf"
+    regexp: 'uniqueids'
+    insertafter: 'config setup'
+    line: '    uniqueids = no'
+
+- name: Copying IPsec configuration
+  blockinfile:
+    block: "{{ ipsec_conf_template }}"
+    path: "{{ strongswan_inst_path }}ipsec.conf"
+    backup: yes
+    create: yes
+    marker: "{{ipsec_marker}}"
+
+- name: Copying IPsec secrets configuration
+  blockinfile:
+    block: "{{ ipsec_secrets_template }}"
+    path: "{{ strongswan_inst_path }}ipsec.secrets"
+    backup: yes
+    create: yes
+    marker: "{{ipsec_marker}}"
+
+- name: Restarting strongswan service
+  service:
+    name: strongswan
+    state: restarted

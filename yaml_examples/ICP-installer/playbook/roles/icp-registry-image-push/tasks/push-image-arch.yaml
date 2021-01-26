@@ -1,0 +1,36 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- block:
+    - name: Docker login to registry
+      shell: |
+        docker login -u {{ icp_image_pull_secret_result.stdout_lines[0] }} -p {{ icp_image_pull_secret_result.stdout_lines[1] }} {{ image_repo.split('/')[0] }}
+      args:
+        executable: /bin/bash
+      register: result
+      until: result|succeeded
+      retries: 20
+      delay: 30
+
+    - name: Ensuring that directory image registry tmp dir exist
+      file: path={{ image_registry_path }} state=directory mode=0755
+
+    - name: Copying image list
+      copy: src={{ inventory_dir }}/.misc/image-list.txt dest={{ image_registry_path }}/ mode=0644
+
+    - name: Pushing images to registry
+      shell: |
+        arch=$(uname -m | sed 's/x86_64/amd64/g')
+        cat {{ image_registry_path }}/image-list.txt | sed "s/:/-$arch:/g" | xargs -i -P{{ image_push_num }} bash -c "if docker inspect --type=image {{ image_repo }}/{}; then docker push {{ image_repo }}/{}; fi"
+      args:
+        executable: /bin/bash
+      register: result
+      until: result|succeeded
+      retries: 3
+      delay: 5
+  delegate_to: "{{ master_nodes[0] }}"
+  run_once: true

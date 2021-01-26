@@ -1,0 +1,23 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking if Installer runs on cluster nodes
+  shell: (ps -ef | grep -v grep | grep -w "/installer/installer.sh") || echo no
+  args:
+    executable: /bin/bash
+  register: installer_out
+
+- block:
+    - name: Checking backup dir if exist
+      stat: path="/usr/bin/backup_docker"
+      register: result
+
+    - name: Checking backup dir result
+      shell: echo defined
+      register: not_rollback
+      when: result.stat.exists == False
+  when: installer_out.stdout == 'no'

@@ -1,0 +1,20 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Backup etcd data
+  shell: |
+    if [[ ! -d {{ backup_dir }}/etcd ]]; then
+      cp -r {{ etcd_data_dir }} {{ backup_dir }}/
+    fi
+    if [[ ! -d {{ backup_dir }}/etcd-wal ]]; then
+      cp -r {{ etcd_wal_dir }} {{ backup_dir }}/
+    fi
+  args:
+    executable: /bin/bash
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5

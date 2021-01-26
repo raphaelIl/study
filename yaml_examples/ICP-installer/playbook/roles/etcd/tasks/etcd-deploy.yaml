@@ -1,0 +1,14 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Getting Etcd name
+  set_fact: etcd_name="etcd{{ item.0 }}"
+  with_indexed_items: "{{ etcd_nodes }}"
+  when: item.1 == inventory_hostname
+
+- name: Ensuring that the Etcd PodSpec file exist
+  template: src=pods/etcd.json.j2 dest=/etc/cfc/pods/etcd.json mode=0600

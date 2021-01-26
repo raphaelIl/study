@@ -1,0 +1,83 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Validating if hosts IP is binded on host
+  fail: msg="Can't find IP {{ inventory_hostname }} on your host"
+  when:
+    - inventory_hostname|ipaddr and inventory_hostname not in ansible_all_ipv4_addresses
+    - skip_host_ip_check is defined and skip_host_ip_check != true
+
+- name: Getting DNS server
+  shell: awk '/^nameserver / {print $2;exit}' /etc/resolv.conf 2>/dev/null || echo 127.0.0.1
+  args:
+    executable: /bin/bash
+  register: dns_server
+
+- name: Validating DNS server
+  fail: msg="A loopback IP is used in your DNS server configuration. For more details, see https://ibm.biz/icp-dnsfail"
+  when: not loopback_dns and (dns_server.stdout | regex_search('^127.0.')) == '127.0.'
+
+- name: Checking Hostname is resolvable
+  shell: ping -c 1 $(hostname) | awk -F'[()]' '{print $2;exit}'
+  args:
+    executable: /bin/bash
+  register: ip_out
+
+- name: Validating Hostname is resolvable
+  fail: msg="Please configure your hostname to resolve to an externally reachable IP"
+  when: ip_out.stdout in ['', '127.0.0.1', '127.0.1.1']
+
+- name: Checking if localhost is resolvable
+  shell: ping -c 1 localhost | awk -F'[()]' '{print $2;exit}'
+  args:
+    executable: /bin/bash
+  register: localhost_out
+
+- name: Validating if localhost is resolvable
+  fail: msg="Please make your localhost resolvable"
+  when: localhost_out.stdout == ''
+
+- name: Validating operating system Init system
+  fail: msg="The operating system should be managed by systemd"
+  when: ansible_service_mgr is not defined or ansible_service_mgr != 'systemd'
+
+- name: Get all valid ip address
+  shell: |
+      interfaces=$(ip link | grep ^[0-9] | cut -d: -f2 | sed 's/ //g')
+      ips=
+      for interface in $interfaces;
+      do
+        if [[ "$interface" =~ docker|cbr|dummy|virbr|lxcbr|veth|lo|cali|tunl|flannel ]]; then
+          continue
+        fi
+        ip=$(ip a | grep "^[\t ].*${interface}$" | awk '{print $2}' | cut -d/ -f1)
+        ips="${ip} ${ips}"
+      done
+      echo $ips
+  args:
+    executable: /bin/bash
+  register: ips
+
+- name: Validating host network if overlapped with the network cidr
+  fail: msg="Host network({{ ips.stdout.split() | ipaddr(network_cidr) }}) is overlapped with the network_cidr({{ network_cidr }}), please reconfigure network_cidr in config.yaml to resolve the overlapped."
+  when: ips.stdout.split() | ipaddr(network_cidr)
+
+- name: Validating default gateway if exists
+  fail: msg="The default network gateway does not exists, please setup the default gateway."
+  when: (ansible_default_ipv4.gateway | default('')) == ''
+
+- name: Check that socat exists
+  shell: command -v socat &>/dev/null && echo true || echo false
+  args:
+    executable: /bin/bash
+  register: socat_exist
+
+- name: Installing socat package
+  package:
+    name: socat
+    state: present
+  when: not socat_exist.stdout|bool

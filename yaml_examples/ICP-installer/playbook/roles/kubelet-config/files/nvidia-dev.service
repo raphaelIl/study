@@ -1,0 +1,12 @@
+[Unit]
+Description=Create Nvidia Devices
+Before=kubelet.service
+
+[Service]
+Type=oneshot
+ExecStart=/var/lib/kubelet/create-nvidia-dev
+ExecStart=/var/lib/kubelet/create-nvidia-uvm
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target

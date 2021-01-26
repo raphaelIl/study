@@ -1,0 +1,29 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating cloud provider conf directory
+  file: path=/etc/cfc/conf state=directory mode=0700
+  when:
+    - inventory_hostname in master_nodes
+
+- name: Creating Cloud Provider config file
+  template: src={{ cloud_provider }}_cloud_conf.j2 dest={{ cloud_provider_conf }} mode=0600
+  when:
+    - inventory_hostname in master_nodes
+    - vsphere_conf is defined
+
+- name: Getting the stat of user provided Cloud Provider config file
+  stat:
+    path: "{{ inventory_dir }}/misc/cloud_provider/{{ cloud_provider }}.conf"
+  register: cloud_provider_conf_path
+  delegate_to: localhost
+
+- name: Creating user provided Cloud Provider config file
+  copy: src={{ inventory_dir }}/misc/cloud_provider/{{ cloud_provider }}.conf dest={{ cloud_provider_conf }} mode=0600
+  when:
+    - inventory_hostname in master_nodes
+    - cloud_provider_conf_path.stat.exists

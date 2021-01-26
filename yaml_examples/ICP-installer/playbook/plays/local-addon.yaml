@@ -1,0 +1,43 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Deploying addon services
+  hosts: localhost
+  serial: "{{ rolling_update_serial | default(0) }}"
+
+  vars:
+    install_type: "fresh"
+
+  roles:
+    - common
+    - kubectl-config
+    - {role: waitfor, res_name: k8s}
+    - tiller
+    - helm-config
+    - {role: chart-repo, when: chart_repo is defined, repos: "{{ chart_repo }}"}
+    - {role: addon, when: infra_addon is defined, helm_charts: "{{ infra_addon }}"}
+    - {role: waitfor, res_name: kube-dns}
+    - {role: addon, when: infra2_addon is defined, helm_charts: "{{ infra2_addon }}"}
+    - {role: waitfor, res_name: glusterfs, when: "not (management_services['storage-glusterfs'] is defined and management_services['storage-glusterfs'] == 'disabled')"}
+    - cert-manager
+    - storage
+    - platform-api
+    - {role: addon, when: phase1_addon is defined, helm_charts: "{{ phase1_addon }}"}
+    - {role: waitfor, res_name: mongodb}
+    - {role: waitfor, res_name: mariadb}
+    - auth-ldaps-cert-secret
+    - {role: addon, when: phase2_addon is defined, helm_charts: "{{ phase2_addon }}"}
+    - {role: addon, when: phase3_addon is defined, helm_charts: "{{ phase3_addon }}"}
+    - {role: waitfor, res_name: auth-pdp}
+    - {role: waitfor, res_name: management-ingress}
+    - iam-apikey-secret
+    - {role: addon, when: phase4_addon is defined, helm_charts: "{{ phase4_addon }}"}
+    - {role: waitfor, res_name: logging-es, when: "not (management_services['vulnerability-advisor'] is defined and management_services['vulnerability-advisor'] == 'disabled')"}
+    - {role: addon, when: phase5_addon is defined, helm_charts: "{{ phase5_addon }}"}
+    - {role: addon, when: last_addon is defined, helm_charts: "{{ last_addon }}"}
+    - service
+    - tiller-post-config

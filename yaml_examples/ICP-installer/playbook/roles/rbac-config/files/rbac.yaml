@@ -1,0 +1,1119 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: icp:edit
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels:
+        rbac.icp.com/aggregate-to-icp-edit: "true"
+rules: []
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+    rbac.icp.com/aggregate-to-icp-edit: "true"
+  name: icp-edit-aggregate
+rules:
+  -
+    apiGroups:
+      - ""
+    resources:
+      - pods
+      - pods/attach
+      - pods/exec
+      - pods/portforward
+      - pods/proxy
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - persistentvolumeclaims
+      - replicationcontrollers
+      - replicationcontrollers/scale
+      - serviceaccounts
+      - services
+      - services/proxy
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - bindings
+      - events
+      - limitranges
+      - namespaces/status
+      - pods/log
+      - pods/status
+      - replicationcontrollers/status
+      - resourcequotas
+      - resourcequotas/status
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - impersonate
+  -
+    apiGroups:
+      - apps
+    resources:
+      - daemonsets
+      - deployments
+      - deployments/rollback
+      - deployments/scale
+      - replicasets
+      - replicasets/scale
+      - statefulsets
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - batch
+    resources:
+      - cronjobs
+      - jobs
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - extensions
+    resources:
+      - daemonsets
+      - deployments
+      - deployments/rollback
+      - deployments/scale
+      - ingresses
+      - networkpolicies
+      - replicasets
+      - replicasets/scale
+      - replicationcontrollers/scale
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - icp.ibm.com
+    resources:
+      - images
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - securityenforcement.admission.cloud.ibm.com
+    resources:
+      - imagepolicies
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - servicecatalog.k8s.io
+    resources:
+      - servicebindings
+      - serviceinstances
+      - servicebindings/status
+      - serviceinstances/status
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: icp:operate
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels:
+        rbac.icp.com/aggregate-to-icp-operate: "true"
+rules: []
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+    rbac.icp.com/aggregate-to-icp-operate: "true"
+  name: icp-operate-aggregate
+rules:
+  -
+    apiGroups:
+      - ""
+    resources:
+      - pods
+      - pods/attach
+      - pods/exec
+      - pods/portforward
+      - pods/proxy
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - persistentvolumeclaims
+      - replicationcontrollers
+      - replicationcontrollers/scale
+      - serviceaccounts
+      - services
+      - services/proxy
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - bindings
+      - events
+      - limitranges
+      - namespaces/status
+      - pods/log
+      - pods/status
+      - replicationcontrollers/status
+      - resourcequotas
+      - resourcequotas/status
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - impersonate
+  -
+    apiGroups:
+      - apps
+    resources:
+      - daemonsets
+      - deployments
+      - deployments/rollback
+      - deployments/scale
+      - replicasets
+      - replicasets/scale
+      - statefulsets
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - batch
+    resources:
+      - cronjobs
+      - jobs
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - extensions
+    resources:
+      - daemonsets
+      - deployments
+      - deployments/rollback
+      - deployments/scale
+      - ingresses
+      - networkpolicies
+      - replicasets
+      - replicasets/scale
+      - replicationcontrollers/scale
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - icp.ibm.com
+    resources:
+      - images
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - securityenforcement.admission.cloud.ibm.com
+    resources:
+      - imagepolicies
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - servicecatalog.k8s.io
+    resources:
+      - servicebindings
+      - serviceinstances
+      - servicebindings/status
+      - serviceinstances/status
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: icp:view
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels:
+        rbac.icp.com/aggregate-to-icp-view: "true"
+rules: []
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+    rbac.icp.com/aggregate-to-icp-view: "true"
+  name: icp-view-aggregate
+rules:
+  -
+    apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - persistentvolumeclaims
+      - pods
+      - replicationcontrollers
+      - replicationcontrollers/scale
+      - serviceaccounts
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - bindings
+      - events
+      - limitranges
+      - namespaces/status
+      - pods/log
+      - pods/status
+      - replicationcontrollers/status
+      - resourcequotas
+      - resourcequotas/status
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - apps
+    resources:
+      - daemonsets
+      - deployments
+      - deployments/scale
+      - replicasets
+      - replicasets/scale
+      - statefulsets
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - batch
+    resources:
+      - cronjobs
+      - jobs
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - extensions
+    resources:
+      - daemonsets
+      - deployments
+      - deployments/scale
+      - ingresses
+      - networkpolicies
+      - replicasets
+      - replicasets/scale
+      - replicationcontrollers/scale
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - icp.ibm.com
+    resources:
+      - images
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - securityenforcement.admission.cloud.ibm.com
+    resources:
+      - imagepolicies
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - servicecatalog.k8s.io
+    resources:
+      - servicebindings
+      - serviceinstances
+      - servicebindings/status
+      - serviceinstances/status
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: icp:admin
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels:
+        rbac.icp.com/aggregate-to-icp-admin: "true"
+rules: []
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+    rbac.icp.com/aggregate-to-icp-admin: "true"
+  name: icp-admin-aggregate
+rules:
+  -
+    apiGroups:
+      - ""
+    resources:
+      - pods
+      - pods/attach
+      - pods/exec
+      - pods/portforward
+      - pods/proxy
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - persistentvolumeclaims
+      - replicationcontrollers
+      - replicationcontrollers/scale
+      - secrets
+      - serviceaccounts
+      - services
+      - services/proxy
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - bindings
+      - events
+      - limitranges
+      - namespaces/status
+      - pods/log
+      - pods/status
+      - replicationcontrollers/status
+      - resourcequotas
+      - resourcequotas/status
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - impersonate
+  -
+    apiGroups:
+      - apps
+    resources:
+      - daemonsets
+      - deployments
+      - deployments/rollback
+      - deployments/scale
+      - statefulsets
+      - replicasets
+      - replicasets/scale
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - batch
+    resources:
+      - cronjobs
+      - jobs
+      - scheduledjobs
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - extensions
+    resources:
+      - daemonsets
+      - deployments
+      - deployments/rollback
+      - deployments/scale
+      - ingresses
+      - networkpolicies
+      - replicasets
+      - replicasets/scale
+      - replicationcontrollers/scale
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - authorization.k8s.io
+    resources:
+      - localsubjectaccessreviews
+    verbs:
+      - create
+  -
+    apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - rolebindings
+      - roles
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - proxy
+  -
+    apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - icp.ibm.com
+    resources:
+      - images
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - securityenforcement.admission.cloud.ibm.com
+    resources:
+      - imagepolicies
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  -
+    apiGroups:
+      - servicecatalog.k8s.io
+    resources:
+      - servicebindings
+      - serviceinstances
+      - servicebindings/status
+      - serviceinstances/status
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: extension
+rules:
+  -
+    nonResourceURLs:
+      - "*"
+    verbs:
+      - "*"
+  -
+    apiGroups:
+      - ""
+    resourceNames:
+      - heapster
+      - "helm:api"
+      - unified-router
+    resources:
+      - services
+    verbs:
+      - proxy
+  -
+    apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - watch
+      - list
+  -
+    apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+  -
+    apiGroups:
+      - servicecatalog.k8s.io
+    resources:
+      - clusterservicebrokers
+      - clusterserviceclasses
+      - clusterserviceplans
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-users
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  -
+    apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: "system:serviceaccounts:default"
+  -
+    kind: ServiceAccount
+    name: default
+    namespace: kube-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+  name: ibm-restricted-clusterrole
+rules:
+  -
+    apiGroups:
+      - extensions
+    resourceNames:
+      - ibm-restricted-psp
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+  name: ibm-anyuid-clusterrole
+rules:
+  -
+    apiGroups:
+      - extensions
+    resourceNames:
+      - ibm-anyuid-psp
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+  name: ibm-anyuid-hostpath-clusterrole
+rules:
+  -
+    apiGroups:
+      - extensions
+    resourceNames:
+      - ibm-anyuid-hostpath-psp
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+  name: ibm-anyuid-hostaccess-clusterrole
+rules:
+  -
+    apiGroups:
+      - extensions
+    resourceNames:
+      - ibm-anyuid-hostaccess-psp
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+  name: ibm-privileged-clusterrole
+rules:
+  -
+    apiGroups:
+      - extensions
+    resourceNames:
+      - ibm-privileged-psp
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ibm-privileged-psp-users
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ibm-privileged-clusterrole
+subjects:
+  -
+    apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: "system:serviceaccounts:default"
+  -
+    kind: ServiceAccount
+    name: default
+    namespace: kube-system
+  -
+    kind: ServiceAccount
+    name: default
+    namespace: cert-manager
+  -
+    apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:nodes
+  -
+    apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: "system:serviceaccounts:istio-system"
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: system:node
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:node
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:nodes
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: icp:teamadmin
+rules:
+  -
+    apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterrolebindings
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+# Grant bootstrappers permission to create csr
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:node-bootstrapper
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:node-bootstrapper
+subjects:
+  - kind: Group
+    name: system:bootstrappers
+    apiGroup: rbac.authorization.k8s.io
+
+# Approve all CSRs for the group "system:bootstrappers"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: system:certificates.k8s.io:certificatesigningrequests:nodeclient
+subjects:
+  - kind: Group
+    name: system:bootstrappers
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: system:certificates.k8s.io:certificatesigningrequests:nodeclient
+  apiGroup: rbac.authorization.k8s.io
+
+#  Let a node renew its own credentials
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: system:certificates.k8s.io:certificatesigningrequests:selfnodeclient
+subjects:
+  - kind: Group
+    name: system:nodes
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: system:certificates.k8s.io:certificatesigningrequests:selfnodeclient
+  apiGroup: rbac.authorization.k8s.io

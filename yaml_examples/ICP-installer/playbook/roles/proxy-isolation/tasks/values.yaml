@@ -1,0 +1,25 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Removing duplicate hostgroup entries
+  set_fact:
+    isolated_proxies_unique: "{{ isolated_proxies_unique|default([]) + [item] }}"
+    temporary_hg_list: "{{ temporary_hg_list|default([]) + [item.namespace] }}"
+  when: item.hostgroup not in temporary_hg_list|default([])
+  loop: "{{ isolated_proxies }}"
+
+- name: Creating directory for ingress chart values
+  file: path={{ inventory_dir }}/.addon/proxy-isolation state=directory mode=0755
+
+- name: Generating value files for ingress chart
+  template: src=default-values.yaml.j2 dest={{ inventory_dir }}/.addon/proxy-isolation/values.yaml mode=0644
+
+- name: Generating value files for ingress chart
+  template: src=values.yaml.j2 dest={{ inventory_dir }}/.addon/proxy-isolation/{{isolated_proxy_var.hostgroup}}-values.yaml mode=0644
+  loop: "{{ isolated_proxies_unique }}"
+  loop_control:
+    loop_var: isolated_proxy_var

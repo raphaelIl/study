@@ -1,0 +1,40 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Getting registry secret
+  shell: |
+    username=$(kubectl get sa default -n kube-system -o jsonpath='{.secrets[0].name}')
+    [[ "X$username" != "X" ]] || exit 1
+    password=$(kubectl get secret ${username} -n kube-system -o jsonpath='{.data.token}' | base64 -d)
+    [[ "X$password" != "X" ]] || exit 1
+    echo token.kube-system.$username
+    echo $password
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  run_once: true
+  register: icp_image_pull_secret_result
+  until: icp_image_pull_secret_result|succeeded
+  retries: 10
+  delay: 30
+
+- name: Checking offline packages
+  shell: cd {{ inventory_dir }}/images; ls *-{{ version }}.tar.gz; true
+  args:
+    warn: false
+    executable: /bin/bash
+  delegate_to: localhost
+  register: all_pkgs
+
+- include_tasks: push-image-arch.yaml
+
+# TODO(zhiwei): Guard when users add a new arch node without put the new arch offline package under images dir
+
+- include_tasks: offline-package.yaml
+  loop: "{{ all_pkgs.stdout_lines }}"
+
+- include_tasks: push-image-multiarch.yaml

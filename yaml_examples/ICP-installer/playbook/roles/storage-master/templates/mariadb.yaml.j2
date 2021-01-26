@@ -1,0 +1,27 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mariadb-{{ item }}
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: mariadb-storage
+  local:
+    path: {{ mariadb_storage_dir }}
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - {{ kubelet_nodename | node_name(item, hostvars[item]['ansible_'~kubelet_nodename]) }}

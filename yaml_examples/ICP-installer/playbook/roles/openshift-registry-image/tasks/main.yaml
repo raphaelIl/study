@@ -1,0 +1,20 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking offline image package
+  shell: basename $(ls {{ inventory_dir }}/images/*-rhos-{{ version }}.tar.gz | head -1); true
+  args:
+    warn: false
+    executable: /bin/bash
+  delegate_to: localhost
+  register: image_package_name
+
+- name: Aborting installation process
+  fail: msg="Unable to find offline package under images directory"
+  when: image_package_name.stdout == ""
+
+- include_tasks: offline-package-images.yaml

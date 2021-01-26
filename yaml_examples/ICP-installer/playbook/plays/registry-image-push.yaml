@@ -1,0 +1,12 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+---
+
+- name: Pushing images to buildin registry
+  hosts: all
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  roles:
+    - {role: icp-registry-image-push, when: private_registry_enabled == false and image_repo != "ibmcom" and container_runtime == "docker"}

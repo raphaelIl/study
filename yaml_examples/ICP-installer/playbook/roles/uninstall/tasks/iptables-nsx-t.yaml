@@ -1,0 +1,21 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Deleting rule from ICP-NSXT chain
+  shell: iptables -tnat -D ICP-NSXT ! -s {{ network_cidr }} -d {{ network_cidr }} -j MASQUERADE || true
+  args:
+    executable: /bin/bash
+
+- name: Deleting chain ICP-NSXT from POSTROUTING
+  shell: iptables -tnat -D POSTROUTING -j ICP-NSXT || true
+  args:
+    executable: /bin/bash
+
+- name: Deleting chain ICP-NSXT
+  shell: iptables -tnat -N ICP-NSXT || true
+  args:
+    executable: /bin/bash

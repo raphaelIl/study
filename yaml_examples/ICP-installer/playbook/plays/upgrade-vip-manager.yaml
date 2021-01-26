@@ -1,0 +1,55 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Upgrade vip manager
+  hosts: all
+  serial: "{{ rolling_update_serial | default(1) }}"
+  force_handlers: True
+  tasks:
+    - import_role:
+        name: common
+
+    - block:
+        - name: Delete old master vip manager
+          file: path=/etc/cfc/pods/{{ item }} state=absent
+          with_items:
+            - master-vip-script.json
+            - master-keepalived.json
+            - master-ucarp.json
+        - name: Create new master vip manager
+          import_role:
+            name: vip-manager
+          vars:
+            vip_node_type: "master"
+            vip_address: "{{ cluster_vip }}"
+            vip_interface: "{{ vip_iface }}"
+      when:
+        - inventory_hostname in master_nodes
+        - master_num|int > 1 and cluster_vip != "127.0.1.1"
+
+    - block:
+        - name: Delete old proxy vip manager
+          file: path=/etc/cfc/pods/{{ item }} state=absent
+          with_items:
+            - proxy-vip-script.json
+            - proxy-keepalived.json
+            - proxy-ucarp.json
+        - name: Create new proxy vip manager
+          import_role:
+            name: vip-manager
+          vars:
+            vip_node_type: "proxy"
+            vip_address: "{{ proxy_vip }}"
+            vip_interface: "{{ proxy_vip_iface }}"
+      when:
+        - inventory_hostname in proxy_nodes
+        - proxy_num|int > 1 and proxy_vip != "127.0.1.1"
+
+    - name: Restart kubelet
+      service: name=kubelet.service state=restarted enabled=yes
+      when:
+        - inventory_hostname in (master_nodes | union(proxy_nodes))
+        - master_num|int > 1 and cluster_vip != "127.0.1.1"

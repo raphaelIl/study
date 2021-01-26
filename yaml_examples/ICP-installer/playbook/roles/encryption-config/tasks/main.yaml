@@ -1,0 +1,17 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Generate secret for Kubernetes encryption provider aescbc
+  shell: head -c 32 /dev/urandom | base64
+  args:
+    executable: /bin/bash
+  register: secret
+
+- name: Ensuring component directory exist
+  file: path={{ inventory_dir }}/cfc-components state=directory mode=0755
+
+- name: Ensuring that the encryption-config.yaml file exist
+  template: src=encryption-config.yaml.j2 dest={{ inventory_dir }}/cfc-components/encryption-config.yaml mode=0600

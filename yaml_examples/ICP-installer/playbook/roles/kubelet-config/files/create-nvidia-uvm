@@ -1,0 +1,16 @@
+#!/bin/bash
+#For more information check this link
+#https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#runfile-verifications
+
+/sbin/modprobe nvidia-uvm
+
+if [ "$?" -eq 0 ]; then
+  # Find out the major device number used by the nvidia-uvm driver
+  D=`grep nvidia-uvm /proc/devices | awk '{print $1}'`
+
+  if [ ! -c /dev/nvidia-uvm ]; then
+     mknod -m 666 /dev/nvidia-uvm c $D 0
+  fi
+else
+  exit 1
+fi

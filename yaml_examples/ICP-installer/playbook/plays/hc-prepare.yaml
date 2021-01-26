@@ -1,0 +1,21 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Prepare Health Checking
+  hosts: localhost
+  any_errors_fatal: false
+  gather_facts: false
+
+  tasks:
+    - name: clearing old log file
+      file: |
+        path={{healthcheck.log_path}} state=absent
+        path={{healthcheck.log_hardware_path}} state=absent
+    - name: Preparing
+      file: |
+        path={{healthcheck.log_path}} state=directory
+        path={{healthcheck.log_pv_path}} state=directory

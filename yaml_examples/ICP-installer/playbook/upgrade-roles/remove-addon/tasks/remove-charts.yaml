@@ -1,0 +1,21 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Removing chart package
+  shell: |
+    helm list -a --tls | awk '{print $1}' | grep "^{{ item.key }}$"
+    if [[ "$?" == "0" ]]; then
+      helm delete --purge --tls {{ item.key }}
+    fi
+  args:
+    warn: false
+    chdir: "{{ inventory_dir }}"
+    executable: /bin/bash
+  with_dict: "{{ helm_charts }}"
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5

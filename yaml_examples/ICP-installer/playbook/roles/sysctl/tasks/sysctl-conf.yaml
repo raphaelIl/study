@@ -1,0 +1,33 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Enabling IP forward preset
+  lineinfile: dest=/etc/sysctl.conf state=absent regexp='^net.ipv4.ip_forward=.*$'
+
+- name: Enabling IP forward
+  lineinfile: dest=/etc/sysctl.conf state=present insertafter=EOF line='net.ipv4.ip_forward=1'
+
+- name: Preset kernel.panic
+  lineinfile: dest=/etc/sysctl.conf state=absent regexp='^kernel.panic=.*$'
+
+- name: Set default kernel.panic
+  lineinfile: dest=/etc/sysctl.conf state=present insertafter=EOF line='kernel.panic=10'
+
+- name: Preset kernel.panic_on_oops
+  lineinfile: dest=/etc/sysctl.conf state=absent regexp='^kernel.panic_on_oops=.*$'
+
+- name: Set default kernel.panic_on_oops
+  lineinfile: dest=/etc/sysctl.conf state=present insertafter=EOF line='kernel.panic_on_oops=1'
+
+- name: Preset vm.overcommit_memory
+  lineinfile: dest=/etc/sysctl.conf state=absent regexp='^vm.overcommit_memory=.*$'
+
+- name: Set default vm.overcommit_memory
+  lineinfile: dest=/etc/sysctl.conf state=present insertafter=EOF line='vm.overcommit_memory=1'
+
+- name: Applying /etc/sysctl.conf
+  shell: sysctl -p; true

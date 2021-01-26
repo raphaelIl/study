@@ -1,0 +1,16 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Uninstall runtime engine
+  hosts: all
+  serial: "{{ rolling_update_serial | default(0) }}"
+  max_fail_percentage: 1
+  any_errors_fatal: true
+
+  tasks:
+    - import_role:
+        name: uninstall-runtime-engine

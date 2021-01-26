@@ -1,0 +1,10 @@
+---
+kind: Secret
+apiVersion: v1
+metadata:
+  name: {{ glusterfs_cfg.heketi.authSecret | default("heketi-secret") }}
+  labels:
+    glusterfs: "heketi-secret"
+type: kubernetes.io/glusterfs
+data:
+  admin_password: {{ default_admin_password | b64encode }}

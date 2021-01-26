@@ -1,0 +1,59 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- include: local.yaml
+  delegate_to: localhost
+  run_once: true
+
+- name: Getting the install lock file
+  shell: ls {{ inventory_dir }}/.install-{{ version }}.lock &>/dev/null && echo yes || echo no
+  args:
+    executable: /bin/bash
+  register: install_lock_file
+  delegate_to: localhost
+  run_once: true
+
+- name: Getting the version file
+  shell: ls /opt/ibm/cfc/version &>/dev/null && echo yes || echo no
+  args:
+    executable: /bin/bash
+  register: version_file
+
+- name: Validating re-install check
+  fail: msg="Please uninstall node [{{ inventory_hostname }}] before re-installing"
+  when: install_lock_file.stdout == 'yes' and version_file.stdout == 'yes'
+  delegate_to: localhost
+
+- include: license.yaml
+
+- block:
+    - include: hardware.yaml
+      ignore_errors: yes
+
+    - include: os.yaml
+
+    - include: port.yaml
+
+    - name: Getting data files
+      shell: ls /var/lib/mysql; true
+      args:
+        executable: /bin/bash
+      register: data
+
+    - name: Validating data files
+      fail: msg="/var/lib/mysql directory should be empty"
+      when: data.stdout != ''
+
+    - include: cloud-provider.yaml
+      when: cloud_provider != 'none'
+  when: version_file.stdout == 'no' and skip_pre_check != true
+
+- name: Creating lock file directory
+  file: path=/opt/ibm/cfc state=directory mode=0755
+
+- name: Creating the lock file
+  copy: content="{{ version }}" dest=/opt/ibm/cfc/version mode=0644

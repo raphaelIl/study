@@ -1,0 +1,24 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating kube-proxy conf directory
+  file: path=/etc/cfc/kube-proxy state=directory mode=0700
+
+- name: Copying kube-proxy certificate to kube-proxy conf directory
+  copy: src={{ inventory_dir }}/cfc-certs/kubernetes/{{ item }} dest=/etc/cfc/kube-proxy/{{ item }} mode=0600
+  loop:
+    - kube-proxy.crt
+    - kube-proxy.key
+
+- name: Creating kubeconfig file for kube-proxy
+  template: src=kube-proxy-config.j2 dest=/etc/cfc/kube-proxy/kube-proxy-config mode=0600
+
+- name: Ensuring that the /etc/cfc/pods directory exist
+  file: path=/etc/cfc/pods state=directory mode=0700
+
+- name: Ensuring that the kube-proxy PodSpec exist
+  template: src=kube-proxy.json.j2 dest=/etc/cfc/pods/kube-proxy.json mode=0600

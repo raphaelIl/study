@@ -1,0 +1,24 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking chart status
+  shell: |
+    chart_exist=$(helm list -a --tls | awk '{print $1}' | grep "^{{ item.key }}$")
+    chart_status=$(helm status {{ item.key }} --tls | grep '^STATUS:' | awk -F': ' '{print $2}')
+    if [[ "X$chart_exist" != "X" && "$chart_status" != "DEPLOYED" ]]; then
+      echo "Chart status is $chart_status, cannot be upgrade. Fix the chart issue and rerun 'upgrade-check' again." && exit 1
+    fi
+  args:
+    warn: false
+    chdir: "{{ inventory_dir }}"
+    executable: /bin/bash
+  when: not (management_services[item.key] is defined and management_services[item.key] == "disabled")
+  with_dict: "{{ helm_charts }}"
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5

@@ -1,0 +1,21 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating image-registry directory
+  file: path={{ inventory_dir }}/cfc-certs/image-registry state=directory mode=0700
+
+# Generate Registry rootcertbundle keypair
+# used to sign authentication tokens: https://docs.docker.com/registry/configuration/#token
+- name: Generating Registry auth certificate
+  shell: |
+    openssl genrsa -out icp-registry.key 4096
+    openssl req -new -key icp-registry.key -out icp-registry.csr -subj "/C=US/ST=New York/L=/O=IBM Cloud Private/CN=icp-registry"
+    openssl x509 -req -days 36500 -in icp-registry.csr -signkey icp-registry.key -out icp-registry.crt
+  args:
+    creates: "{{ inventory_dir }}/cfc-certs/image-registry/icp-registry.crt"
+    chdir: "{{ inventory_dir }}/cfc-certs/image-registry"
+    executable: /bin/bash

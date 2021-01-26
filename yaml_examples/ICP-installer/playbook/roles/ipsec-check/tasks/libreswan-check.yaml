@@ -1,0 +1,33 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking OS compatibility for Libreswan
+  fail: msg="OS distribution of all the hosts must be same if IPsec is enabled."
+  when: ansible_distribution != 'RedHat'
+
+- name: Fetching ipsec/libreswan service status
+  service:
+    name: ipsec
+  register: ipsec_service
+
+- name: Reporting if ipsec/libreswan service is not installed
+  fail: msg="Install 'Libreswan' package to continue with ipsec configuration"
+  when: ipsec_service.status.LoadState != "loaded"
+
+- name: Checking if pk12util and certutil exists
+  shell: command -v {{item}} &>/dev/null && echo true || echo false
+  register: utils_exist
+  with_items:
+    - "pk12util"
+    - "certutil"
+  args:
+    executable: /bin/bash
+
+- fail: msg="The utility '{{item.item}}' is required for configuring ipsec"
+  when: not item.stdout | bool
+  with_items:
+    - "{{utils_exist.results}}"

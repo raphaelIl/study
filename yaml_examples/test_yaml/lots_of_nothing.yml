@@ -1,0 +1,18 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: lots-of-nothing
+spec:
+  replicas: 6
+# replicas 위치는 template 밑에는 안되나 보다..?
+  selector:
+    matchLabels:
+      timeToGet: schwifty
+  template:
+    metadata:
+      labels:
+        timeToGet: schwifty
+    spec:
+      containers:
+      - name: test
+        image: k8s.gcr.io/pause:2.0

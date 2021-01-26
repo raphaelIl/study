@@ -1,0 +1,28 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating Kubernetes conf directory
+  file: path=/etc/cfc/conf state=directory mode=0700
+
+- name: Copying Kubernetes certficate
+  copy: src={{ inventory_dir }}/cfc-certs/kubernetes/{{ item }} dest=/etc/cfc/conf/{{ item }} mode=0600
+  with_items:
+    - kubecfg.crt
+    - kubecfg.key
+
+- name: Generating kubeconfig file for administrators
+  template: src=config.yaml.j2 dest=/etc/cfc/conf/admin.kubeconfig mode=0600
+
+- name: Creating kubectl binary
+  shell: |
+    mkdir -p /root/.kube /usr/local/bin
+    cat /etc/cfc/conf/admin.kubeconfig > /root/.kube/config
+    ln -sf /etc/cfc/conf/admin.kubeconfig /var/lib/kubelet/kubectl-config
+    ln -sf /opt/kubernetes/hyperkube /usr/local/bin/kubectl
+  args:
+    warn: false
+    executable: /bin/bash

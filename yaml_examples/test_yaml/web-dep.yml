@@ -1,0 +1,30 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: web-dep
+  labels:
+    tier: frontend
+  annotations:
+    Appversion: "3.4"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        tier: frontend
+    spec:
+      containers:
+      - name: test
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+        # securityContext:
+          # runAsUser: 1000
+          # privileged: true
+          
+# root@master:~/test_yaml# kubectl set image deployment/web-dep test=nginx:1.9
+# 저기 뒤에 쓰는게 컨테이너 이름이었네
+# deployment.extensions/web-dep image updated

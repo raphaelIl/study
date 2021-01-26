@@ -1,0 +1,95 @@
+안녕하세요. 남현종입니다.
+
+cluster 구성 시 진행하는 내용이며 경성씨한테 맞게 대충 5d 기준으로 적었습니다. (저거보다 더 있는데 기억이 안나네요)
+아래 내용 다 해보시면 말씀하세요. 다른 내용도 보내 드리도록 하겠습니다
+보통 아래의 내용은 둘이 운영 업무 따로 진행하면서 1d로 진행합니다 
+
+감사합니다.
+
+backup 설정
+https://github.com/ibm-cloud-architecture/icp-backup 참조
+mongodb, mariadb, etcd에 대한 backup / restore setting
+time : 1d
+
+restore test
+backup 내용으로 mariadb, mongodb, etcd restore test 진행
+time : 4h
+
+helm chart 설치
+k8s_stable source를 노트북에서 다운 -> VM으로 업로드 후 패키징 및 upload (폐쇠망을 가정하고 진행)
+time : 2h
+
+# 위에 원하는 결과가 뭐지????
+
+ldap 설치 및 user 생성 & 등록
+helm chart로 설치
+time : 1h
+
+namespace 생성 및 quota 적용
+time : 1h
+
+node labeling 및 namespace mapping 
+time : 1h
+
+storage class 생성 
+helm chart nfs-client 활용 (k8s_stable)
+nas 구성이 가능하다면 진행해 보세요
+time : 1h
+
+management swap on & swappiness 1 적용
+swap off 설정 시 memory가 over되면 out of memory kill이 발생하기 때문에 이를 방지하기 위해 swap on이지만 swap off처럼 동작하도록 설정
+time : 10m
+
+free memory min 1GB 적용
+docker container 생성 시 free memory가 부족하면 container를 생성하지 못하기 때문에 이를 방지하기 위해 진행
+time : 10m
+
+jenkins 구축 및 pipeline 연결
+https://akomljen.com/set-up-a-jenkins-ci-cd-pipeline-with-kubernetes/ 참조
+https://radu-matei.com/blog/kubernetes-jenkins-azure/ 참조
+둘 다 비슷한 내용임
+time : 1d
+
+Jenkins 구축에 성공했다면 jenkins로 helm 패키징 & 배포하는 job 생성
+time : 4h
+
+calicoctl 설치
+icp cli page의 calicoctl 파일 깨졌어요
+time : 1h
+
+다른 대역대(C클래스)의 VM으로 worker node 추가 후 ipip 옵션 off
+ipip off 시 다른 대역대의 node는 네트워크 단절
+kube-system의 metering pod 중 다른 대역대의 node에서 생성된 pod는 crashoff 발생한다면 ipip 옵션이 off된 거임
+time : 1h
+
+위의 내용으로 ipip 옵션 on으로 네트워크 연결되는 지 확인
+default는 on이라서 됨
+time : 10m
+
+curator 설정 변경
+한국시간 23시 30분에 실행되도록 설정
+time : 10m
+
+curator 기간 설정
+default value는 1d임. 2d로 변경
+time : 10m
+
+audit log 활성화
+설치 시 활성화 되어 있는 상태라면 진행할 필요 없음
+time : 10m
+
+audit_policy 변경
+default option으로 설정 시 용량 이슈 발생할 수 있으므로 필요한 부분 외의 내용은 없애야 함. 그냥 변경할 수 있으면 됨
+time : 10m
+
+grafana, prometheus, ldap data volume 연결
+pod가 재 시작될 때마다 설정 내용이 초기화 되기 때문에 이를 방지하기 위해 설정
+time : 30m
+
+docker no proxy 옵션 설정
+다른 대역대의 노드끼리는 해당 옵션 필요
+time : 10m
+
+add insecure docker registry 
+private registry 접근 시 인증 에러 발생 시 처리해야 함
+time : 10m

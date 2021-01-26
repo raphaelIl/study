@@ -1,0 +1,24 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Getting Docker engine package
+  shell: ls {{ inventory_dir }}/docker-engine/{{ docker_package_name }} /docker-engine/{{ docker_package_name }} | tail -1; true
+  register: docker_pgk_path
+  delegate_to: localhost
+
+- block:
+    - name: Copying docker package
+      copy: src={{ docker_pgk_path.stdout }} dest=/tmp force=no mode=0755
+
+    - name: Installing docker package
+      shell: bash /tmp/{{ docker_package_name }} --rollback
+      args:
+        executable: /bin/bash
+
+    - name: Cleaning up docker packages
+      file: path="/tmp/{{ docker_package_name }}" state=absent
+  when: docker_pgk_path.stdout != ''

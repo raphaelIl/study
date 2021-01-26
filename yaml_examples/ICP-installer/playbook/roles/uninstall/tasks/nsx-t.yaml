@@ -1,0 +1,26 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Getting application number
+  shell: kubectl get pods --all-namespaces | grep -v kube-system | wc -l; true
+  args:
+    executable: /bin/bash
+  register: app_num
+
+- debug: msg="The system detected that you have too many applications, removing them can take some time. Please wait patiently."
+  when: app_num.stdout|int > 100
+
+- name: Removing all workload
+  shell: |
+    for ns in $(kubectl get namespaces  -o name | egrep -v 'kube-system'); do
+      kubectl delete ingresses,networkpolicies,services,deployment,statefulset,daemonset,job,replicasets,replicationcontrollers,pod --all --namespace=${ns} --force --grace-period=0 --ignore-not-found=true  --timeout=180s
+      kubectl delete $ns
+    done
+    kubectl delete all --namespace=kube-system -l tier!=nsx-networking --force --grace-period=0 --ignore-not-found=true --timeout=180s
+    kubectl delete all --namespace=kube-system -l tier=nsx-networking --force --grace-period=0 --ignore-not-found=true --timeout=60s
+    true
+  args:
+    executable: /bin/bash

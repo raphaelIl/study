@@ -1,0 +1,72 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- block:
+    - name: Getting offline package archiecture
+      set_fact: op_arch="{% if item.find('x86_64') != -1 %}amd64{% elif item.find('ppc64le') != -1 %}ppc64le{% else %}s390x{% endif %}"
+
+    - name: Getting master node arch
+      shell: uname -m | sed 's/x86_64/amd64/g'
+      register: manifest_tool_arch
+
+    - name: Copying manifest-tool to master node
+      copy: src="/usr/local/bin/manifest-tool-{{ manifest_tool_arch.stdout }}" dest=/usr/local/bin/manifest-tool mode=0755
+
+    - name: Checking registry image
+      shell: |
+        export NO_PROXY={{ image_repo.split('/')[0] }}
+        arch="{{ op_arch }}"
+        k8s_image="{{ k8s_image }}"
+        k8s_image="${k8s_image%:*}-$arch:${k8s_image##*:}"
+
+        /usr/local/bin/manifest-tool --username {{ icp_image_pull_secret_result.stdout_lines[0] }} \
+            --password {{ icp_image_pull_secret_result.stdout_lines[1] }} \
+            inspect $k8s_image &>/dev/null && echo yes || echo no
+      args:
+        executable: /bin/bash
+      register: image_arch_result
+
+    - block:
+        - name: Copying offline package
+          copy: src={{ inventory_dir }}/images/{{ item }} dest={{ offline_pkg_copy_path }}/{{ item }} mode=0644
+
+        - name: Loading offline package as images
+          shell: tar xf {{ offline_pkg_copy_path }}/{{ item }} -O | docker load
+          args:
+            warn: false
+            executable: /bin/bash
+
+        - name: Removing offline package
+          file: path={{ offline_pkg_copy_path }}/{{ item }} state=absent
+
+        - name: Copying image re-tag script
+          copy: src=image-retag.sh dest={{ image_registry_path }}/ mode=0755
+
+        # docker tag ibmcom/pause-{{ op_arch }}:3.1 mycluster.icp:8500/ibmcom/pause-{{ op_arch }}:3.1
+        # docker rmi ibmcom/pause-{{ op_arch }}:3.1
+        - name: Re-tagging Docker images
+          shell: |
+            bash {{ image_registry_path }}/image-retag.sh -a {{ op_arch }} -s ibmcom -t {{ image_repo }}
+          args:
+            executable: /bin/bash
+
+        - name: Copying image list
+          copy: src={{ inventory_dir }}/.misc/image-list.txt dest={{ image_registry_path }}/ mode=0644
+
+        - name: Pushing images to registry
+          shell: |
+            arch="{{ op_arch }}"
+            cat {{ image_registry_path }}/image-list.txt | sed "s/:/-$arch:/g" | xargs -i -P{{ image_push_num }} bash -c "if docker inspect --type=image {{ image_repo }}/{}; then docker push {{ image_repo }}/{} && docker rmi {{ image_repo }}/{}; fi"
+          args:
+            executable: /bin/bash
+          register: result
+          until: result|succeeded
+          retries: 3
+          delay: 5
+      when: image_arch_result.stdout == "no"
+  delegate_to: "{{ master_nodes[0] }}"
+  run_once: true

@@ -1,0 +1,39 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Getting containerd version
+  shell: crictl --version &>/dev/null && echo true || echo false
+  args:
+    executable: /bin/bash
+  register: containerd_exist
+
+- block:
+    - name: Getting containerd package
+      shell: ls {{ inventory_dir }}/runtime-engine/{{ containerd_package_name }} /runtime-engine/{{ containerd_package_name }} | tail -1; true
+      register: containerd_pgk_path
+      delegate_to: localhost
+
+    - name: Copying containerd package
+      copy: src={{ containerd_pgk_path.stdout }} dest=/tmp mode=0755
+
+    - name: Uninstalling containerd package
+      shell: bash /tmp/{{ containerd_package_name }} --uninstall
+      args:
+        executable: /bin/bash
+
+    - name: Cleaning up containerd packages
+      file: path="/tmp/{{ containerd_package_name }}" state=absent
+
+    - name: Cleaning up a directory
+      file: path={{ cni_bin_dir }} state=absent
+      with_items:
+        - "{{ cni_bin_dir }}"
+        - "{{ cni_conf_dir }}"
+        - /etc/containerd
+
+  when:
+    - install_containerd
+    - containerd_exist.stdout|bool

@@ -1,0 +1,19 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Recover etcd data
+  shell: |
+    if [[ -d {{ backup_dir }}/etcd ]]; then
+      rm -rf {{ etcd_data_dir }}
+      cp -r {{ backup_dir }}/etcd {{ etcd_data_dir }}
+    fi
+    if [[ -d {{ backup_dir }}/etcd-wal ]]; then
+      rm -rf {{ etcd_wal_dir }}
+      cp -r {{ backup_dir }}/etcd-wal {{ etcd_wal_dir }}
+    fi
+  args:
+    executable: /bin/bash

@@ -1,0 +1,154 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Getting stat of required nsx-t files
+  stat:
+    path: "{{item}}"
+  register: all_stats
+  with_items:
+    - /proc
+    - /opt/cni/bin/nsx
+
+- name: Validating if required nsx-t file exists
+  fail: msg="File "{{item.item}}" not found."
+  when: item.stat.exists == False
+  with_items:
+    - "{{ all_stats.results }}"
+
+- name: Validating if the node architecture is x86_64
+  fail: msg="nsx-t network is not supported for {{ ansible_architecture }} architecture"
+  when: ansible_architecture != 'x86_64'
+
+- name: Validating mandatory nsx-t configuration parameters
+  fail: msg="Mandatory configuration parameter '{{ item }}' is missing."
+  with_items: ['managers', 'subnet_prefix', 'ncp_package', 'ncp_image', 'ncp_image_tag', 'overlay_TZ', 'container_ip_blocks', 'external_ip_pools', 'tier0_router']
+  when:
+    - item not in nsx_t.keys()
+  run_once: true
+
+- name: Validating optionally mandatory nsx-t configuration parameters
+  fail: msg="For nsx-manager authentication either manager_user and manager_password or client_cert and client_private_key should be given"
+  when:
+    - (nsx_t.manager_user is not defined or nsx_t.manager_password is not defined) and (nsx_t.client_cert is not defined or nsx_t.client_private_key is not defined)
+  run_once: true
+
+- name: Validating nsx-t subnet_prefix configuration parameters
+  fail: msg="subnet_prefix should have value less than 31 but given ({{ nsx_t.subnet_prefix }})"
+  when:
+    - (nsx_t.subnet_prefix | int ) > 30
+  run_once: true
+
+- name: Validating nsx-t external_subnet_prefix configuration parameters
+  fail: msg="external_subnet_prefix should have value less than 31 but given ({{ nsx_t.external_subnet_prefix }})"
+  when:
+    - nsx_t.external_subnet_prefix is defined
+    - (nsx_t.external_subnet_prefix | int ) > 30
+  run_once: true
+
+- name: Setting the supported values for nsx-t parameters
+  set_fact:
+    supported_node_type: ['HOSTVM', 'BAREMETAL']
+    supported_lb_pool_algorithm: ['ROUND_ROBIN', 'LEAST_CONNECTION', 'IP_HASH', 'WEIGHTED_ROUND_ROBIN']
+    supported_lb_service_size: ['SMALL', 'MEDIUM', 'LARGE']
+    supported_lb_l4_persistence: ['source_ip']
+    supported_lb_l7_persistence: ['cookie', 'source_ip']
+
+- name: Validating nsx-t node_type configuration parameter
+  fail: msg="node_type parameter's supported values are BAREMETAL/HOSTVM"
+  when:
+    - nsx_t.node_type is defined
+    - nsx_t.node_type not in supported_node_type
+  run_once: true
+
+- name: Validating nsx-t lb_pool_algorithm configuration parameter
+  fail: msg="lb_pool_algorithm parameter's supported values are ROUND_ROBIN/LEAST_CONNECTION/IP_HASH/WEIGHTED_ROUND_ROBIN"
+  when:
+    - nsx_t.lb_pool_algorithm is defined
+    - nsx_t.lb_pool_algorithm not in supported_lb_pool_algorithm
+  run_once: true
+
+- name: Validating nsx-t lb_service_size configuration parameter
+  fail: msg="lb_service_size parameter's supported values are SMALL/MEDIUM/LARGE"
+  when:
+    - nsx_t.lb_service_size is defined
+    - nsx_t.lb_service_size not in supported_lb_service_size
+  run_once: true
+
+- name: Validating nsx-t lb_l4_persistence configuration parameter
+  fail: msg="lb_l4_persistence parameter's supported values are source_ip"
+  when:
+    - nsx_t.lb_l4_persistence is defined
+    - nsx_t.lb_l4_persistence not in supported_lb_l4_persistence
+  run_once: true
+
+- name: Validating nsx-t lb_l7_persistence configuration parameter
+  fail: msg="lb_l7_persistence parameter's supported values are cookie/source_ip"
+  when:
+    - nsx_t.lb_l7_persistence is defined
+    - nsx_t.lb_l7_persistence not in supported_lb_l7_persistence
+  run_once: true
+
+- name: Validating loadbalancer default Private key and Certificate
+  fail: msg="Both the default Private key and Certificate for the loadbalancer has to specified"
+  when:
+    - (nsx_t.lb_default_cert is not defined and nsx_t.lb_default_private_key is defined) or (nsx_t.lb_default_cert is defined and nsx_t.lb_default_private_key is not defined)
+  run_once: true
+
+- name: Validating apparmor config
+  fail: msg="The apparmor_enabled parameter has to set explictly to false when nodes operating system is RHEL"
+  when:
+    - ansible_distribution == 'RedHat'
+    - (nsx_t.apparmor_enabled is not defined or (nsx_t.apparmor_enabled | bool))
+
+- name: Setting the ovs bridge
+  set_fact: ovs_bridge="{{ nsx_t.ovs_bridge | default('br-int') }}"
+
+- name: Validating if bridge {{ ovs_bridge }} is configured
+  shell: ovs-vsctl br-exists {{ ovs_bridge }}
+
+- block:
+    - name: Getting the port of bridge {{ ovs_bridge }} with ofport as 1
+      shell: ovs-ofctl dump-ports-desc {{ ovs_bridge }}  | tr -d " " | grep "^1(" | awk -F"[()]" '{print $2}'
+      args:
+        executable: /bin/bash
+      register: interface
+
+    - name: Setting the ovs uplink port
+      set_fact: uplink_interface="{{ interface.stdout }}"
+
+    - name: "Validating if the {{ ovs_bridge }} bridge has a port with ofport as 1"
+      fail: msg="The {{ ovs_bridge }} bridge doesn't have a port with ofport as 1"
+      when:
+        - uplink_interface == ""
+
+  when: nsx_t.ovs_uplink_port is not defined
+
+- block:
+    - name: Setting the ovs uplink port
+      set_fact: uplink_interface="{{ nsx_t.ovs_uplink_port }}"
+
+    - name: Getting the bridge that contains the ovs uplink port
+      shell: ovs-vsctl port-to-br {{ uplink_interface }} || echo no
+      args:
+        executable: /bin/bash
+      register: bridge_name
+
+    - name: "Validating if the ovs uplink port is a port of {{ ovs_bridge }} bridge"
+      fail: msg="The given ovs uplink port ( {{ uplink_interface }} )is not part of {{ ovs_bridge }} bridge"
+      when:
+        - bridge_name.stdout != ovs_bridge
+
+  when: nsx_t.ovs_uplink_port is defined
+
+- name: Getting the stats of ovs uplink port
+  stat:
+    path: /sys/class/net/{{ uplink_interface }}/device/
+  register: stat_interface
+
+- name: Validating if the ovs uplink port is a physical interface
+  fail: msg="{{ uplink_interface }} is not a physical interface to be used as uplink for {{ ovs_bridge }}"
+  when: stat_interface.stat.exists == False

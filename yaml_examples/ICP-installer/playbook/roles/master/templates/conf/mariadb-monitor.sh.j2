@@ -1,0 +1,66 @@
+#!/bin/bash
+
+CERT_FILE=/etc/cfc/conf/etcd/client.pem
+KEY_FILE=/etc/cfc/conf/etcd/client-key.pem
+CA_FILE=/etc/cfc/conf/etcd/ca.pem
+ENDPOINTS={{ cluster_etcd_url }}
+ETCD_CLI="etcdctl --cert-file=$CERT_FILE --key-file=$KEY_FILE --ca-file=$CA_FILE --endpoints=$ENDPOINTS"
+
+function check_etcd() {
+    while true
+    do
+        $ETCD_CLI member list
+        if [[ $? -eq 0 ]]; then
+            break
+        else
+            sleep 2
+            continue
+        fi
+    done
+}
+
+function update_mysql_bootstrap() {
+    mysql_passwd=$(cat /usr/local/bin/start.sh | grep MYSQL_ROOT_PASSWORD | awk -F '=' '{print $2}')
+    mysql -uroot -p$mysql_passwd -h127.0.0.1 -e "SET GLOBAL wsrep_provider_options='pc.bootstrap=YES';"
+}
+
+function check_gvwstatefile() {
+    if [[ ! -s /var/lib/mysql/gvwstate.dat ]]; then
+        rm -rf /var/lib/mysql/gvwstate.dat
+    fi
+}
+
+function lease_lock() {
+    while true
+    do
+        $ETCD_CLI mk mariadb_lock lock --ttl 5
+        if [[ $? -eq 0 ]]; then
+            # Select the first node as master
+            echo 'master' > /var/lib/mysql/cluster_role
+            update_mysql_bootstrap
+            while true
+            do
+                # Use master to fresh the key ttl
+                $ETCD_CLI update mariadb_lock lock --ttl 5
+                if [[ $? -eq 0 ]]; then
+                    echo 'master' > /var/lib/mysql/cluster_role
+                    sleep 2
+                    continue
+                else
+                    sleep 2
+                    break
+                fi
+            done
+        else
+            echo 'slave' > /var/lib/mysql/cluster_role
+            sleep 2
+            continue
+        fi
+    done
+}
+
+check_etcd
+check_gvwstatefile
+# sleep 5s to avoid the race condition
+sleep 5
+lease_lock

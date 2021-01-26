@@ -1,0 +1,19 @@
+conn private
+    auto=ondemand
+    type=transport
+    leftcert=ipsec-libreswan
+    left={{ ipsec_left_node_ip }}
+    leftid="CN=ipsec-mesh"
+    right=%opportunisticgroup
+    rightid="CN=ipsec-mesh"
+    ikev2=insist
+    esp={% if ipsec_mesh.cipher_suite != "" %}{{ ipsec_mesh.cipher_suite }}{% else %}aes_gcm_c128{% endif %}
+
+
+{% if ipsec_mesh.exclude_ips is defined and ipsec_mesh.exclude_ips | length > 0 %}
+conn clear
+    type=passthrough
+    auto=ondemand
+    left={{ ipsec_left_node_ip }}
+    right=%group
+{% endif %}

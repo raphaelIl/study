@@ -1,0 +1,7 @@
+#jinja2: trim_blocks: "true", lstrip_blocks: "false"
+podNodeSelectorPluginConfig:
+  clusterDefaultNodeSelector: ""
+  {% if true %}
+  #namespace1: <node-selectors-labels>
+  #namespace2: <node-selectors-labels>
+  {% endif %}

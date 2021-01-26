@@ -1,0 +1,76 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking local tiller image
+  shell: |
+    base=$(basename {{ tiller_image }})
+    arch=$(uname -m | sed 's/x86_64/amd64/g')
+    image="ibmcom/${base//:/-$arch:}"
+    docker inspect --type=image $image &>/dev/null && echo yes || echo no
+  args:
+    executable: /bin/bash
+  register: local_tiller_image_exist
+  delegate_to: "{{ master_nodes[0] }}"
+
+- name: Checking registry tiller image
+  shell: |
+    docker inspect --type=image {{ tiller_image }} &>/dev/null && echo yes || echo no
+  args:
+    executable: /bin/bash
+  register: registry_tiller_image_exist
+  delegate_to: "{{ master_nodes[0] }}"
+
+# Copy and load offline package when local and registry have no hyperkube
+- block:
+    - name: Copying offline package
+      copy: src={{ inventory_dir }}/images/{{ image_package_name.stdout }} dest={{ offline_pkg_copy_path }}/{{ image_package_name.stdout }} mode=0644
+
+    - name: Loading offline package as images
+      shell: tar xf {{ offline_pkg_copy_path }}/{{ image_package_name.stdout }} -O | docker load
+      args:
+        warn: false
+        executable: /bin/bash
+
+    - name: Removing offline package
+      file: path={{ offline_pkg_copy_path }}/{{ image_package_name.stdout }} state=absent
+  delegate_to: "{{ master_nodes[0] }}"
+  when: local_tiller_image_exist.stdout == "no" and registry_tiller_image_exist.stdout == "no"
+
+- block:
+    - name: Ensuring that directory /tmp/image-registry exist
+      file: path={{ image_registry_path }} state=directory mode=0755
+
+    - name: Copying image re-tag script
+      copy: src=image-retag.sh dest={{ image_registry_path }}/ mode=0755
+
+    - name: Copying image list
+      copy: src={{ inventory_dir }}/.misc/image-list.txt dest={{ image_registry_path }}/ mode=0644
+
+    - name: Creating image-bot serviceaccount
+      shell: |
+        export KUBECONFIG=/etc/origin/master/admin.kubeconfig
+        oc get serviceaccount icp-image-bot || oc create serviceaccount icp-image-bot
+        oc adm policy add-cluster-role-to-user cluster-admin icp-image-bot
+
+    - name: Docker login
+      shell: |
+        export KUBECONFIG=/etc/origin/master/admin.kubeconfig
+        docker login -u icp-image-bot -p $(oc sa get-token icp-image-bot) {{ image_repo.split('/')[0] }}
+
+    # docker tag ibmcom/pause-amd64:3.1 mycluster.icp:8500/ibmcom/pause-amd64:3.1
+    # docker tag ibmcom/pause-amd64:3.1 mycluster.icp:8500/ibmcom/pause:3.1
+    # docker rmi ibmcom/pause-amd64:3.1
+    - name: Re-tagging Docker images
+      shell: |
+        bash {{ image_registry_path }}/image-retag.sh -s ibmcom -t {{ image_repo }}
+      args:
+        executable: /bin/bash
+
+    - name: Docker logout
+      shell: docker logout {{ image_repo.split('/')[0] }}
+  delegate_to: "{{ master_nodes[0] }}"
+  when: registry_tiller_image_exist.stdout == "no"

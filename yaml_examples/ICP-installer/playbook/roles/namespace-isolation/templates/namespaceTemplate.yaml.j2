@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    scheduler.alpha.kubernetes.io/node-selector: "{{isolated_ns_var.hostgroup}}=true"
+    scheduler.alpha.kubernetes.io/defaultTolerations: '[{"key":"dedicated","operator":"Equal","value":"{{isolated_ns_var.hostgroup}}","effect":"NoSchedule"}]'
+  name: {{isolated_ns_var.namespace}}

@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ds-test
+  labels:
+    daemon: test
+spec:
+  selector:
+    matchLabels:
+      daemon: pod
+  template:
+    metadata:
+      labels:
+        daemon: pod
+    spec:
+      containers:
+      - name: test
+        image: nginx:1.7
+        imagePullPolicy: IfNotPresent
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule

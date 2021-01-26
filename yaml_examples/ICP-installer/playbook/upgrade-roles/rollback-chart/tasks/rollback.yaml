@@ -1,0 +1,22 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Rollbacking chart package
+  shell: |
+    {{ role_path }}/files/rollback-chart.sh \
+    --name={{ item.key }} \
+    --timeout={{ helm_timeout }} \
+    --rollbackExtraArgs="{{ helm_args.rollback[item.key] | default([]) | join(' ') }}"
+  args:
+    executable: /bin/bash
+  ignore_errors: true
+  when: not (management_services[item.key] is defined and management_services[item.key] == "disabled")
+  with_dict: "{{ helm_charts }}"
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5

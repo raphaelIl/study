@@ -1,0 +1,26 @@
+#!/bin/bash
+
+export MYSQL_ROOT_PASSWORD={{ mariadb_password }}
+
+if [[ $# = 3 ]]; then
+    "$@"
+else
+    rm -rf /var/lib/mysql/cluster_role
+    while true
+        do
+        sleep 2
+        if [ -e /var/lib/mysql/cluster_role ]; then
+	          break
+        fi
+    done
+
+    role=$(cat /var/lib/mysql/cluster_role)
+
+    if [[ x$role == 'xslave' ]]; then
+        chown -R mysql:mysql /var/lib/mysql
+        mysqld --user=mysql
+    else
+        chown -R mysql:mysql /var/lib/mysql
+        "$@"
+    fi
+fi

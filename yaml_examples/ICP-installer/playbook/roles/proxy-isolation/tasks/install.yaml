@@ -1,0 +1,44 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+## Installing charts
+- name: Installing proxy ingress chart package
+  shell: |
+    filename="{{hostvars['localhost']['phase1_addon']['nginx-ingress']['path']}}"
+    if [[ -d "{{hostvars['localhost']['phase1_addon']['nginx-ingress']['path']}}" ]]; then
+      filename=$(ls {{hostvars['localhost']['phase1_addon']['nginx-ingress']['path']}}/*.tgz | tail -1)
+    fi
+    ret=0
+    if helm status --tls nginx-ingress-{{item.hostgroup}} &>/dev/null && helm status --tls nginx-ingress-{{item.hostgroup}} | grep -q 'STATUS: FAILED'; then
+      rev=$(helm list --tls nginx-ingress-{{item.hostgroup}} | awk '{if($1 == "nginx-ingress-{{item.hostgroup}}"){print $2;exit}}')
+      if [[ "$rev" == "1" ]]; then
+        helm delete --tls --purge --timeout={{ helm_timeout }} nginx-ingress-{{item.hostgroup}}
+        ret=$?
+        sleep 5
+      fi
+    fi
+    if ! helm status --tls nginx-ingress-{{item.hostgroup}} &>/dev/null; then
+      helm upgrade --tls --install --force --timeout={{ helm_timeout }} --namespace={{hostvars['localhost']['phase1_addon']['nginx-ingress']['namespace'] | default('kube-system') }} -f .addon/proxy-isolation/values.yaml -f .addon/proxy-isolation/{{item.hostgroup}}-values.yaml nginx-ingress-{{item.hostgroup}} $filename
+      ret=$?
+    fi
+    if [[ $ret -ne 0 ]]; then
+      tiller_pod=$(kubectl -n kube-system get pods -l app=helm,name=tiller -o jsonpath="{.items[0].metadata.name}")
+      kubectl -n kube-system logs $tiller_pod &> {{ inventory_dir }}/logs/$tiller_pod
+      echo "============================================================"
+      echo "Tiller log can be found under cluster/logs/$tiller_pod"
+      echo "============================================================"
+    fi
+    exit $ret
+  args:
+    warn: false
+    chdir: "{{ inventory_dir }}"
+    executable: /bin/bash
+  loop: "{{ isolated_proxies_unique }}"
+  register: result
+  until: result|succeeded
+  retries: 5
+  delay: 30

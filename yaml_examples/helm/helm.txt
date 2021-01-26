@@ -1,0 +1,100 @@
+nginx:1.13.9-alpine
+
+
+root@icp-master:~/charts/stable/ibm-nginx-dev# docker tag nginx:1.13.0-alpine mycluster.icp:8500/default/nginx:1.13.9-alpine
+Error response from daemon: No such image: nginx:1.13.0-alpine
+root@icp-master:~/charts/stable/ibm-nginx-dev# docker tag nginx:1.13.9-alpine mycluster.icp:8500/default/nginx:1.13.9-alpine
+root@icp-master:~/charts/stable/ibm-nginx-dev#
+root@icp-master:~/charts/stable/ibm-nginx-dev#
+root@icp-master:~/charts/stable/ibm-nginx-dev# docker push mycluster.icp:8500/default/nginx:1.13.9-alpine
+The push refers to a repository [mycluster.icp:8500/default/nginx]
+5efc006b5ed6: Pushed
+b0efd61aab3d: Pushed
+fd8dbe3c801b: Pushed
+cd7100a72410: Pushed
+1.13.9-alpine: digest: sha256:7129a88c455160dc25ce8499e1a4bfc4cb09ca5a67402ec974b9ae96bf2d94d0 size: 1153
+root@icp-master:~/charts/stable/ibm-nginx-dev#
+root@icp-master:~/charts/stable/ibm-nginx-dev# docker search --help
+
+Usage:  docker search [OPTIONS] TERM
+
+Search the Docker Hub for images
+
+Options:
+  -f, --filter filter   Filter output based on conditions provided
+      --format string   Pretty-print search using a Go template
+      --help            Print usage
+      --limit int       Max number of search results (default 25)
+      --no-trunc        Don't truncate output
+root@icp-master:~/charts/stable/ibm-nginx-dev# vim values.yaml
+root@icp-master:~/charts/stable/ibm-nginx-dev#
+root@icp-master:~/charts/stable/ibm-nginx-dev# cd ..
+root@icp-master:~/charts/stable# ls
+ibm-ace-dashboard-dev        ibm-csi-nfs             ibm-galera-mariadb-dev   ibm-istio             ibm-minio-objectstore               ibm-nodejs-sample              ibm-reactive-platform-lagom-sample  ibm-swift-sample
+ibm-ace-server-dev           ibm-datapower-dev       ibm-glusterfs            ibm-istio-remote      ibm-mobilefoundation-dev            ibm-odm-dev                    ibm-redis-ha-dev                    ibm-transadv-dev
+ibm-aspera-cli               ibm-db2oltp-dev         ibm-hazelcast-dev        ibm-jenkins-dev       ibm-mongodb-dev                     ibm-open-liberty               ibm-rook-rbd-cluster                ibm-voice-gateway-dev
+ibm-blockchain-platform-dev  ibm-dsm-dev             ibm-icplogging           ibm-lsfce-dev         ibm-mqadvanced-server-dev           ibm-postgres-dev               ibm-sam                             ibm-was-vm-quickstarter-dev
+ibm-calico-bgp-peer          ibm-dsx-dev             ibm-icplogging-kibana    ibm-mariadb-dev       ibm-netcool-piagent-prometheus-dev  ibm-powerai                    ibm-skydive-dev                     ibm-websphere-liberty
+ibm-cam                      ibm-eventstreams-dev    ibm-icpmonitoring        ibm-messagesight-dev  ibm-netcool-probe-dev               ibm-powervc-k8s-volume-driver  ibm-spectrum-conductor              ibm-websphere-traditional
+ibm-cem                      ibm-f5bigip-controller  ibm-integration-bus-dev  ibm-microclimate      ibm-nginx-dev                       ibm-rabbitmq-dev               ibm-spectrum-symphony-dev           ibm-ws-dyn-agent-dev
+root@icp-master:~/charts/stable# helm package ibm-nginx-dev/
+Successfully packaged chart and saved it to: /root/charts/stable/ibm-nginx-dev-1.0.1.tgz
+root@icp-master:~/charts/stable#
+root@icp-master:~/charts/stable# bx pr load-helm-chart --archive /root/charts/stable/ibm-nginx-dev-1.0.1.tgz
+Loading helm chart
+FAILED
+Returned status 500 Internal Server Error
+
+
+
+Password> root@icp-master:~/charts/stable# bx pr login -a https://mycluster.icp:8443 --skip-ssl-validation
+API endpoint: https://mycluster.icp:8443
+
+Username> admin
+
+Password>
+Authenticating...
+OK
+
+Select an account:
+1. mycluster Account (id-mycluster-account)
+Enter a number> 1
+Targeted account mycluster Account (id-mycluster-account)
+
+Configuring helm and kubectl...
+Configuring kubectl: /root/.bluemix/plugins/icp/clusters/mycluster/kube-config
+Property "clusters.mycluster" unset.
+Property "users.mycluster-user" unset.
+Property "contexts.mycluster-context" unset.
+Cluster "mycluster" set.
+User "mycluster-user" set.
+Context "mycluster-context" created.
+Switched to context "mycluster-context".
+
+Cluster mycluster configured successfully.
+
+Configuring helm: /root/.helm
+Helm configured successfully
+
+OK
+
+root@icp-master:~/charts/stable#
+root@icp-master:~/charts/stable#
+root@icp-master:~/charts/stable# bx pr load-helm-chart --archive /root/charts/stable/ibm-nginx-dev-1.0.1.tgz
+Loading helm chart
+Loaded helm chart
+
+Synch charts
+Synch started
+OK
+
+
+
+helm chart 이용법 (internal)
+
+0. chart를 생성하고
+1. 이게 제일 어려운데 원하는 이미지를 만들거나 다운받는다
+2. internal에 올릴 형식에 맞게 tag한다
+3. internal push한다
+4. bx login 
+5. bx pr load-helm-chart --archive [push]

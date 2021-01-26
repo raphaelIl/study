@@ -1,0 +1,73 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating service namespace
+  shell:
+    cmd: |
+      cat <<EOF | kubectl apply -f -
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: services
+      EOF
+  args:
+    executable: /bin/bash
+
+- name: Creating OAuthClientMap config map
+  shell:
+    cmd: |
+      cat <<EOF | kubectl apply -f -
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: oauth-client-map
+        namespace: services
+      data:
+        MASTER_IP: {{ cluster_external_address }}
+        PROXY_IP: {{ proxy_external_address }}
+        CLUSTER_CA_DOMAIN: {{ cluster_CA_domain }}
+      EOF
+  args:
+    executable: /bin/bash
+
+- name: Creating OAuthClientMap secret
+  shell:
+    cmd: |
+      cat <<EOF | kubectl apply -f -
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: oauth-client-secret
+        namespace: services
+      type: Opaque
+      data:
+        WLP_CLIENT_REGISTRATION_SECRET: {{ wlp_client_registration_secret | b64encode }}
+        DEFAULT_ADMIN_USER: {{ default_admin_user | b64encode }}
+      EOF
+  args:
+    executable: /bin/bash
+
+- name: Creating ibm-anyuid-hostpath-clusterrole-rolebinding
+  shell:
+    cmd: |
+      cat <<EOF | kubectl apply -f -
+      kind: RoleBinding
+      apiVersion: rbac.authorization.k8s.io/v1
+      metadata:
+        name: ibm-anyuid-hostpath-clusterrole-rolebinding
+        namespace: services
+      subjects:
+        - kind: Group
+          apiGroup: rbac.authorization.k8s.io
+          name: "system:serviceaccounts:services"
+      roleRef:
+        kind: ClusterRole
+        name: ibm-anyuid-hostpath-clusterrole
+        apiGroup: rbac.authorization.k8s.io
+      EOF
+  args:
+    executable: /bin/bash

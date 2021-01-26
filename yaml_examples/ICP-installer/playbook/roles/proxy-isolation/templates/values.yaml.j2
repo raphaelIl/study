@@ -1,0 +1,23 @@
+ingress:
+  name: "nginx-ingress-controller-{{ isolated_proxy_var.hostgroup }}"
+  extraArgs:
+    publish-status-address: "{% if isolated_proxy_var.lb_address is defined %}{{isolated_proxy_var.lb_address}}{% else %}{{ groups['hostgroup-' + isolated_proxy_var.hostgroup][0] }}{% endif %}"
+    watch-namespace: "{{ isolated_proxy_var.namespace }}"
+    election-id: "ingress-controller-leader-{{ isolated_proxy_var.hostgroup }}"
+  nodeSelector:
+    {{ isolated_proxy_var.hostgroup }}: 'true'
+  tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "{{isolated_proxy_var.hostgroup}}"
+      effect: "NoSchedule"
+
+defaultBackend:
+  name: default-backend-{{ isolated_proxy_var.hostgroup }}
+  nodeSelector:
+    {{isolated_proxy_var.hostgroup}}: 'true'
+  tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "{{isolated_proxy_var.hostgroup}}"
+      effect: "NoSchedule"

@@ -1,0 +1,29 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Getting Tiller certificates addresses
+  set_fact:
+    tiller_cert_list:
+      - "IP:127.0.0.1"
+      - "DNS:localhost"
+      - "DNS:tiller-deploy"
+      - "DNS:tiller-deploy.kube-system"
+      - "DNS:tiller-deploy.kube-system:44134"
+      - "DNS:tiller-deploy.kube-system.svc"
+      - "{% if cluster_external_address|ipaddr %}IP:{{ cluster_external_address }}{% else %}DNS:{{ cluster_external_address }}{% endif %}"
+      - "{% if cluster_internal_address|ipaddr %}IP:{{ cluster_internal_address }}{% else %}DNS:{{ cluster_internal_address }}{% endif %}"
+      - "DNS:{{ cluster_CA_domain }}"
+
+- name: Generating tiller and helm certificates
+  shell: |
+    export CERT_DIR={{ inventory_dir }}/cfc-certs/helm
+    export ROOT_CA_CRT={{ inventory_dir }}/cfc-certs/root-ca/ca.crt
+    export ROOT_CA_KEY={{ inventory_dir }}/cfc-certs/root-ca/ca.key
+    export ADMIN_USER={{ default_admin_user }}
+    {{ role_path }}/files/make-helm-certs.sh {{ tiller_cert_list | unique | join(",") }}
+  args:
+    creates: "{{ inventory_dir }}/cfc-certs/helm/tiller.crt"

@@ -1,0 +1,58 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Uninstalling on OpenShift
+  hosts: localhost
+  max_fail_percentage: 0
+  any_errors_fatal: true
+  gather_facts: false
+
+  tasks:
+    - import_role:
+        name: common
+
+    - import_role:
+        name: kubectl-config
+
+    - import_role:
+        name: helm-config
+
+    - name: Uninstalling management services
+      shell: |
+        if helm status --tls {{ item }}; then
+            helm delete --tls --purge --no-hooks {{ item }}
+        fi
+      loop:
+        - mgmt-repo
+        - helm-repo
+        - helm-api
+        - monitoring
+        - logging
+        - metering
+        - custom-metrics-adapter
+        - unified-router
+        - heapster
+        - platform-api
+        - catalog-ui
+        - platform-ui
+        - icp-management-ingress
+        - auth-idp
+        - auth-apikeys
+        - auth-pap
+        - auth-pdp
+        - nginx-ingress
+        - metrics-server
+        - mariadb
+        - mongodb
+        - cert-manager
+
+    - name: Uninstalling management resources
+      shell: |
+        kubectl -n kube-system delete deploy,service tiller-deploy
+        kubectl -n kube-system delete secret tiller-secret router-certs etcd-secret cluster-ca-cert infra-registry-key
+        kubectl -n kube-system delete configmap etcd-config
+        true

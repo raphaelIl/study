@@ -1,0 +1,33 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Ensuring component directory exist
+  file: path={{ inventory_dir }}/cfc-components state=directory mode=0755
+
+- name: Ensuring that the tiller.yaml file exist
+  template: src=tiller.yaml.j2 dest={{ inventory_dir }}/cfc-components/tiller.yaml mode=0644
+
+- name: Deploying Tiller
+  shell: kubectl apply --force --overwrite=true -f {{ inventory_dir }}/cfc-components/tiller.yaml
+  args:
+    executable: /bin/bash
+
+- name: Waiting for Tiller to start
+  shell: |
+    index=0
+    retries=60
+    while true; do
+        sleep 10
+        index=$(( index + 1 ))
+        if [[ $index -eq $retries ]]; then
+            echo "Failed to start Tiller, following is related info"
+            kubectl -n kube-system get pods
+            kubectl -n kube-system describe pod $(kubectl -n kube-system get pods -l app=helm,name=tiller -o jsonpath="{.items[0].metadata.name}")
+            exit 1
+        fi
+        kubectl -n kube-system get pods --no-headers -l app=helm,name=tiller | awk '/Running/' | grep 1/1 && break
+    done

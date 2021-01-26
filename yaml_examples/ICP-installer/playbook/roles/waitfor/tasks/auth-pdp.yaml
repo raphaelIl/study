@@ -1,0 +1,15 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Waiting for auth-pdp to start
+  shell: kubectl -n kube-system get daemonset auth-pdp -o=custom-columns=A:.status.numberAvailable,B:.status.desiredNumberScheduled --no-headers=true | tr -s " " | awk '$1 == $2 {print "READY"}'
+  args:
+    executable: /bin/bash
+  register: result
+  until: result.stdout.find("READY") != -1
+  retries: 100
+  delay: 60

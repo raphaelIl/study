@@ -1,0 +1,18 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Configuring kubectl
+  shell: |
+    kubectl config set-cluster {{ cluster_name }} --server={{ kubernetes_apiserver_url }} --insecure-skip-tls-verify=true \
+    && kubectl config set-context {{ cluster_name }} --cluster={{ cluster_name }} \
+    && kubectl config set-credentials {{ cluster_name }} --client-certificate={{ inventory_dir }}/cfc-certs/kubernetes/kubecfg.crt --client-key={{ inventory_dir }}/cfc-certs/kubernetes/kubecfg.key \
+    && kubectl config set-context {{ cluster_name }} --user={{ cluster_name }} \
+    && kubectl config use-context {{ cluster_name }}
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  run_once: true

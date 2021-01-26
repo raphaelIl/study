@@ -1,0 +1,31 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Waiting for default service account to exists
+  shell: kubectl get serviceaccounts default
+  args:
+    executable: /bin/bash
+  register: result
+  until: result|succeeded
+  retries: 15
+  delay: 60
+
+- name: Adding ImagePullSecrets to system namespace service account
+  shell: |
+    kubectl get namespace {{ item }} || kubectl create namespace {{ item }}
+    kubectl -n {{ item }} get secret infra-registry-key || kubectl -n {{ item }} create secret docker-registry infra-registry-key --docker-server={{ image_repo.split('/')[0] }} --docker-username={{ docker_username }} --docker-password={{ docker_password }} --docker-email='icp@ibm.com'
+    kubectl -n {{ item }} get serviceaccount default -o yaml | grep -w infra-registry-key || kubectl -n {{ item }} patch serviceaccount default -p '{"imagePullSecrets": [{"name": "infra-registry-key"}]}'
+  args:
+    executable: /bin/bash
+  register: result
+  until: result|succeeded
+  retries: 3
+  delay: 5
+  loop:
+    - kube-system
+    - cert-manager
+    - istio-system

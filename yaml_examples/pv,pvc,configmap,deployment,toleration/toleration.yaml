@@ -1,0 +1,32 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: toleration-deploy
+  labels:
+    status: slave1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      status: slave1
+  template:
+    metadata:
+      name: toleration_pod
+      labels:
+        status: slave1
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+      tolerations:
+      - key: status
+        operator: Equal
+        value: slave1
+        effect: NoSchedule
+
+# operator는 Equal(Default)이다.
+# root@master_t:~# kubectl describe node worker1 | grep Taint
+# Taints:             status=slave1:NoSchedule
+
+
+  

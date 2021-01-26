@@ -1,0 +1,18 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Rollback kubelet binary and service
+  shell: |
+    if [[ -f {{ backup_dir }}/$(basename {{ item }}) ]]; then
+      rm -f {{ item }}
+      cp -f {{ backup_dir }}/$(basename {{ item }}) {{ item }}
+    fi
+  args:
+    executable: /bin/bash
+  with_items:
+    - /opt/kubernetes/hyperkube
+    - /etc/systemd/system/kubelet.service

@@ -1,0 +1,23 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating image-manager pv file
+  template: src=image-manager.yaml.j2 dest={{ inventory_dir }}/cfc-components/storage/image-manager-{{ item }}.yaml mode=0644
+
+- name: Creating Registry persistent volumes
+  shell: kubectl apply -f {{ inventory_dir }}/cfc-components/storage/image-manager-{{ item }}.yaml
+  args:
+    executable: /bin/bash
+
+- name: Creating Registry persistent directory
+  file: path={{ registry_storage_dir }} state=directory mode=0755
+  delegate_to: "{{ item }}"
+
+# Workaround fix for image registry
+- name: Ensuring that image file system check file exist
+  file: path={{ registry_storage_dir }}/file-check state=touch mode=0755
+  delegate_to: "{{ item }}"

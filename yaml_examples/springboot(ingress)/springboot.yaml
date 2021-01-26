@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot-deployment
+  namespace: test
+  labels:
+    app: gs-spring-boot-docker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gs-spring-boot-docker
+  template:
+    metadata:
+      labels:
+        app: gs-spring-boot-docker
+    spec:
+      containers:
+      - name: gs-spring-boot-docker
+        image: springio/gs-spring-boot-docker
+        ports:
+        - containerPort: 8080
+        imagePullPolicy: Always
+
+---
+  
+apiVersion: v1
+kind: Service
+metadata:
+  name: springboot-svc
+  namespace: test
+spec:
+  ports:
+    - name: http  # 
+      targetPort: 8080 
+      port: 8081
+      nodePort: 32000
+  selector:
+    app: gs-spring-boot-docker
+  type: NodePort

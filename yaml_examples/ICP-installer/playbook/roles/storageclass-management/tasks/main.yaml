@@ -1,0 +1,34 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating Logging storage class
+  shell:
+    cmd: |
+      cat <<EOF | kubectl apply -f -
+      kind: StorageClass
+      apiVersion: storage.k8s.io/v1
+      metadata:
+        name: logging-storage-datanode
+      provisioner: "{{ storage_provisioner }}"
+      volumeBindingMode: WaitForFirstConsumer
+      EOF
+  args:
+    executable: /bin/bash
+
+# - name: Creating Metering storage class
+#   shell:
+#     cmd: |
+#       cat <<EOF | kubectl apply -f -
+#       kind: StorageClass
+#       apiVersion: storage.k8s.io/v1
+#       metadata:
+#         name: metering-storage
+#       provisioner: "{{ storage_provisioner }}"
+#       volumeBindingMode: WaitForFirstConsumer
+#       EOF
+#   args:
+#     executable: /bin/bash

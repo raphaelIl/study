@@ -1,0 +1,12 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- import_playbook: plays/hc-prepare.yaml
+
+- import_playbook: plays/hc-system.yaml
+
+- import_playbook: plays/hc-kube-system.yaml

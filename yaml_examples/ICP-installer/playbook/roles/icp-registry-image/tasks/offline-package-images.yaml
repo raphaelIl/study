@@ -1,0 +1,70 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking offline image package
+  shell: basename $(ls {{ inventory_dir }}/images/*-{{ ansible_architecture }}-{{ version }}.tar.gz | head -1); true
+  args:
+    warn: false
+    executable: /bin/bash
+  delegate_to: localhost
+  register: image_package_name
+
+- name: Aborting installation process
+  fail: msg="Unable to find offline package under images directory"
+  when: image_package_name.stdout == ""
+
+- name: Checking local hyperkube image
+  shell: |
+    base=$(basename {{ k8s_image }})
+    arch=$(uname -m | sed 's/x86_64/amd64/g')
+    image="ibmcom/${base//:/-$arch:}"
+    docker inspect --type=image $image &>/dev/null && echo yes || echo no
+  args:
+    executable: /bin/bash
+  register: local_k8s_image_exist
+
+- name: Checking registry hyperkube image
+  shell: |
+    docker inspect --type=image {{ k8s_image }} &>/dev/null && echo yes || echo no
+  args:
+    executable: /bin/bash
+  register: registry_k8s_image_exist
+
+# Copy and load offline package when local and registry have no hyperkube
+- block:
+    - name: Copying offline package
+      copy: src={{ inventory_dir }}/images/{{ image_package_name.stdout }} dest={{ offline_pkg_copy_path }}/{{ image_package_name.stdout }} mode=0644
+
+    - name: Loading offline package as images
+      shell: tar xf {{ offline_pkg_copy_path }}/{{ image_package_name.stdout }} -O | docker load
+      args:
+        warn: false
+        executable: /bin/bash
+
+    - name: Removing offline package
+      file: path={{ offline_pkg_copy_path }}/{{ image_package_name.stdout }} state=absent
+  when: local_k8s_image_exist.stdout == "no" and registry_k8s_image_exist.stdout == "no"
+
+- block:
+    - name: Ensuring that directory /tmp/image-registry exist
+      file: path={{ image_registry_path }} state=directory mode=0755
+
+    - name: Copying image re-tag script
+      copy: src=image-retag.sh dest={{ image_registry_path }}/ mode=0755
+
+    - name: Copying image list
+      copy: src={{ inventory_dir }}/.misc/image-list.txt dest={{ image_registry_path }}/ mode=0644
+
+    # docker tag ibmcom/pause-amd64:3.1 mycluster.icp:8500/ibmcom/pause-amd64:3.1
+    # docker tag ibmcom/pause-amd64:3.1 mycluster.icp:8500/ibmcom/pause:3.1
+    # docker rmi ibmcom/pause-amd64:3.1
+    - name: Re-tagging Docker images
+      shell: |
+        bash {{ image_registry_path }}/image-retag.sh -s ibmcom -t {{ image_repo }}
+      args:
+        executable: /bin/bash
+  when: registry_k8s_image_exist.stdout == "no"

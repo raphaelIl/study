@@ -1,0 +1,26 @@
+#!/bin/bash
+#For more information check this link
+#https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#runfile-verifications
+
+/sbin/modprobe nvidia
+
+if [ "$?" -eq 0 ]; then
+  # Count the number of NVIDIA controllers found.
+  NVDEVS=`lspci | grep -i NVIDIA`
+  N3D=`echo "$NVDEVS" | grep "3D controller" | wc -l`
+  NVGA=`echo "$NVDEVS" | grep "VGA compatible controller" | wc -l`
+
+  N=`expr $N3D + $NVGA - 1`
+  for i in `seq 0 $N`; do
+    if [ ! -c /dev/nvidia$i ]; then
+       mknod -m 666 /dev/nvidia$i c 195 $i
+    fi
+  done
+
+  if [ ! -c /dev/nvidiactl ]; then
+     mknod -m 666 /dev/nvidiactl c 195 255
+  fi
+
+else
+  exit 1
+fi

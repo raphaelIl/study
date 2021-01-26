@@ -1,0 +1,9 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- include: iptables-nsx-t.yaml
+  when: network_type == "nsx-t" and (inventory_hostname in master_nodes or inventory_hostname in proxy_nodes or inventory_hostname in management_nodes)

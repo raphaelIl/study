@@ -1,0 +1,99 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Gathering facts of installed libreswan
+  set_fact:
+    libreswan_inst_path: "/etc/ipsec.d/"
+
+- name: Setting variables for IPsec mesh configuration
+  set_fact:
+    ipsec_ca_cert: "ca.crt"
+    ipsec_client_key: "ipsec-mesh.key"
+    ipsec_left_cert: "ipsec-mesh.crt"
+    ipsec_left_node_ip: "{{ ipsec_dp_interface_ip }}"
+
+- name: Generate p12 certificate for libreswan
+  shell: "openssl pkcs12 -export -in {{inventory_dir}}/cfc-certs/ipsec/{{ipsec_left_cert}} -inkey {{inventory_dir}}/cfc-certs/ipsec/{{ipsec_client_key}} -certfile {{inventory_dir}}/cfc-certs/root-ca/{{ipsec_ca_cert}} -out {{inventory_dir}}/cfc-certs/ipsec-libreswan.p12 -name ipsec-libreswan -password pass:"
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  run_once: true
+
+- name: Copy p12 certificate to ipsec.d
+  copy: src={{inventory_dir}}/cfc-certs/ipsec-libreswan.p12 dest={{libreswan_inst_path}}/ipsec-libreswan.p12 mode=0600
+
+- name: Checking for existing database
+  stat: path="/etc/ipsec.d/{{item}}"
+  register: existing_db
+  with_items:
+    - cert9.db
+    - key4.db
+
+- name: Backup existing database
+  command: "mv /etc/ipsec.d/{{item.item}} /etc/ipsec.d/{{item.item}}_{{ lookup('pipe', 'date +%Y_%m_%d_%H%M') }}"
+  when: item.stat.exists
+  with_items: "{{existing_db.results}}"
+
+- name: Initialize NSS database
+  shell: ipsec initnss
+  register: nssinitstatus
+  args:
+    executable: /bin/bash
+  ignore_errors: true
+
+- name: Checking if NSS database is initialization is successful
+  fail: msg="Failed to initialize NSS database, Resolve the issue - {{nssinitstatus.stderr_lines}}"
+  when: nssinitstatus.rc != 0
+
+- name: Import certificate to NSS database
+  shell: "pk12util -i /etc/ipsec.d/ipsec-libreswan.p12 -d sql:/etc/ipsec.d -W ''"
+  args:
+    executable: /bin/bash
+
+- name: Deleting certificate file after importing into NSS db
+  file: path="{{ libreswan_inst_path }}ipsec-libreswan.p12" state=absent
+
+- name: Creating IPsec configuration from template
+  template:
+    src: "ipsec-libreswan.conf.j2"
+    dest: "{{libreswan_inst_path}}/ipsec-libreswan.conf"
+
+- name: Adding subnets to private policy
+  lineinfile:
+    path: "{{libreswan_inst_path}}/policies/private"
+    line: "{{item}}"
+  with_items: "{{ ipsec_mesh.subnets }}"
+
+- name: Adding subnets to clear policy
+  lineinfile:
+    path: "{{libreswan_inst_path}}/policies/clear"
+    line: "{% if item.find('/') == -1 %}{{item}}/32{% else %}{{item}}{% endif %}"
+  with_items: "{{ ipsec_mesh.exclude_ips }}"
+
+- name: Ensure config-setup section exists
+  lineinfile:
+    path: "/etc/ipsec.conf"
+    regexp: 'config setup'
+    line: 'config setup'
+
+- name: Disabling unique ID check
+  lineinfile:
+    path: "/etc/ipsec.conf"
+    regexp: 'uniqueids'
+    insertafter: 'config setup'
+    line: '    uniqueids = no'
+
+- name: Ensure include conf line exists
+  lineinfile:
+    path: "/etc/ipsec.conf"
+    regexp: 'include /etc/ipsec.d/\*.conf'
+    line: 'include /etc/ipsec.d/*.conf'
+
+- name: Restarting ipsec service
+  service:
+    name: ipsec
+    state: restarted

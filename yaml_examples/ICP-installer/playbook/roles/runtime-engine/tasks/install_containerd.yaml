@@ -1,0 +1,54 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+- name: Getting containerd version
+  shell: crictl --version &>/dev/null && echo true || echo false
+  args:
+    executable: /bin/bash
+  register: containerd_exist
+
+- block:
+    - name: Getting containerd package
+      shell: ls {{ inventory_dir }}/runtime-engine/{{ containerd_package_name }} /runtime-engine/{{ containerd_package_name }} | tail -1; true
+      register: containerd_pgk_path
+      delegate_to: localhost
+
+    - name: Copying containerd package
+      copy: src={{ containerd_pgk_path.stdout }} dest=/tmp force=no mode=0755
+
+    - name: Installing containerd package
+      shell: |
+        bash /tmp/{{ containerd_package_name }} --install \
+        --containerd_env "{{ containerd_env | join(' ') }}" \
+        --containerd_config '{{ containerd_config | to_nice_json }}'
+      args:
+        executable: /bin/bash
+
+    - name: Cleaning up containerd packages
+      file: path="/tmp/{{ containerd_package_name }}" state=absent
+
+    - name: Create a directory for cni binary
+      file: path={{ cni_bin_dir }} state=directory
+
+    - name: Create a directory for cni config files
+      file: path={{ cni_conf_dir }} state=directory
+
+    - name: Creating containerd directory
+      file: path=/etc/containerd state=directory mode=0755
+
+    - name: Creating containerd config
+      template: src=config.toml.j2 dest=/etc/containerd/config.toml mode=0644
+
+    - name: Reloading systemd configs
+      shell: systemctl daemon-reload
+      args:
+        executable: /bin/bash
+
+    - name: Starting/Restarting containerd
+      service: name=containerd state=restarted enabled=yes
+  when:
+    - install_containerd
+    - not (containerd_exist.stdout|bool)

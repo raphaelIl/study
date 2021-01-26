@@ -1,0 +1,19 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating Metering pv file
+  template: src=metering.yaml.j2 dest={{ inventory_dir }}/cfc-components/storage/metering-{{ inventory_hostname }}.yaml mode=0644
+  delegate_to: localhost
+
+- name: Creating Metering persistent volume
+  shell: kubectl apply -f {{ inventory_dir }}/cfc-components/storage/metering-{{ inventory_hostname }}.yaml
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+
+- name: Creating Metering persistent directory
+  file: path={{ metering_storage_dir }} state=directory mode=0755

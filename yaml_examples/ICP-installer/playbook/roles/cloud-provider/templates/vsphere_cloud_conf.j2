@@ -1,0 +1,11 @@
+[Global]
+   user={{ vsphere_conf['user'] }}
+   password={{ vsphere_conf['password'] }}
+   server={{ vsphere_conf['server'] }}
+   port={{ vsphere_conf['port']|default(443) }}
+   insecure-flag={{ vsphere_conf['insecure_flag']|default(1) }}
+   datacenter={{ vsphere_conf['datacenter'] }}
+   datastore={{ vsphere_conf['datastore'] }}
+   working-dir={{ vsphere_conf['working_dir'] }}
+[Disk]
+   scsicontrollertype={{ vsphere_conf['scsi_controller_type']|default('pvscsi') }}

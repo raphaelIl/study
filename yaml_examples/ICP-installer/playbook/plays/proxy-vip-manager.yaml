@@ -1,0 +1,13 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Deploying proxy node
+  hosts: proxy
+  serial: "{{ rolling_update_serial | default(0) }}"
+
+  roles:
+    - {role: vip-manager, when: proxy_num|int > 1 and proxy_vip != "127.0.1.1", vip_node_type: "proxy", vip_address: "{{ proxy_vip }}", vip_interface: "{{ proxy_vip_iface }}"}

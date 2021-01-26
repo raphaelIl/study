@@ -1,0 +1,15 @@
+{{ hostvars['localhost'][item.key] | default({}) | to_nice_yaml(indent=2) }}
+
+heketiTopology:
+{% if glusterfs_cfg.nodes is defined and glusterfs_cfg.nodes is not none %}
+{% for node in glusterfs_cfg.nodes %}
+  - k8sNodeName: {{ kubelet_nodename | node_name(node.ip, hostvars[node.ip]['ansible_'~kubelet_nodename]) }}
+    k8sNodeIp: {{ node.ip }}
+{% if node.devices is defined and node.devices is not none %}
+    devices:
+{% for device in node.devices %}
+      - {{ device }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}

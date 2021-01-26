@@ -1,0 +1,118 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    app: helm
+    name: tiller
+  name: tiller-deploy
+  namespace: kube-system
+spec:
+  clusterIP: "{{ tiller_service_ip }}"
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: 44134
+    targetPort: 44134
+  selector:
+    app: helm
+    name: tiller
+
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  labels:
+    app: helm
+    name: tiller
+  name: tiller-deploy
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: helm
+      name: tiller
+  template:
+    metadata:
+      labels:
+        app: helm
+        name: tiller
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+    spec:
+      volumes:
+      - name: tiller-certs
+        secret:
+          secretName: tiller-secret
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: tiller
+        image: "{{ tiller_image }}"
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /etc/certs
+          name: tiller-certs
+        resources:
+{{ tiller_resources |  to_nice_yaml | indent(indentfirst=true,width=10) }}
+        env:
+        - name: IAM_HOST
+          value: "{{ tiller_iam_host }}"
+        - name: IAM_PORT
+          value: "{{ tiller_iam_port }}"
+        - name: TILLER_HISTORY_MAX
+          value: "{{ tiller_history_max }}"
+        - name: TILLER_NAMESPACE
+          value: kube-system
+        - name: TILLER_TLS_CERTS
+          value: /etc/certs
+        - name: TILLER_TLS_VERIFY
+          value: "1"
+        - name: TILLER_TLS_ENABLE
+          value: "1"
+        - name: default_admin_user
+          value: "{{ tiller_default_admin_user }}"
+        livenessProbe:
+          httpGet:
+            path: "/liveness"
+            port: 44135
+            scheme: HTTP
+          initialDelaySeconds: 1
+          timeoutSeconds: 1
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: "/readiness"
+            port: 44135
+            scheme: HTTP
+          initialDelaySeconds: 1
+          timeoutSeconds: 1
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+      nodeSelector:
+        master: 'true'
+      tolerations:
+      - key: "dedicated"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "CriticalAddonsOnly"
+        operator: "Exists"
+      - effect: NoSchedule
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1

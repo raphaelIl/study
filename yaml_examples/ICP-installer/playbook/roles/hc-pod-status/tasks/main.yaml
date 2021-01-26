@@ -1,0 +1,68 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Check cluster
+  shell: kubectl version
+
+- name: Pod Status
+  shell: |
+    logfile={{healthcheck.log_path}}/{{item}}.{{healthcheck.pod_status_file}}
+    echo "" > ${logfile}
+    kubectl --namespace={{item}} get pods -o wide >> ${logfile}
+    totalNum=`kubectl --namespace={{item}} get pods --no-headers | wc -l`
+    echo "==================================================" >> ${logfile}
+    echo "${totalNum} Pods" >> ${logfile}
+    true
+  loop: "{{hc_namespaces}}"
+- name: Pod logs collecting
+  shell: |
+    _nonworkers=`kubectl get nodes --no-headers=true --selector='node-role.kubernetes.io/worker!=true' | awk '{print $1}' | sed ':a;N;s/\n/|/;ba;'`
+    if [ {{ hc_namespaces|length }} le "1" ]; then
+      # No check worker node if it specify a namespace
+      _nonworkers=""
+    fi
+    OLDIFS=$IFS
+    IFS=$'\n'
+    for _line in `kubectl get pods --namespace={{item}} --no-headers -o wide | grep -E "${_nonworkers}"`
+    do
+      _podname=`echo ${_line} | awk '{print $1}'`
+      _containerNum=`echo ${_line} | awk '{print $2}' | awk -F '/' '{print $2}'`
+      # collect describe and log
+      # pod describe
+      poddesfile={{healthcheck.log_path}}/{{item}}.{{healthcheck.pod_describe_prefix}}.${_podname}
+      kubectl --namespace={{item}} describe pods ${_podname} > ${poddesfile}
+      # pod logs
+      if [ ${_containerNum} -gt "1" ]; then
+        # container log
+        for ((i=0;i<=${_containerNum}-1;i++));
+        do
+          _containerName=`kubectl --namespace={{item}} get po ${_podname} -o=custom-columns=CONTAINER:.spec.containers[${i}].name --no-headers`
+          podlogfile={{healthcheck.log_path}}/{{item}}.{{healthcheck.pod_log_prefix}}.${_podname}.${_containerName}
+          kubectl logs ${_podname} --container=${_containerName} --namespace={{item}} --tail={{healthcheck.pod_log_max_line}} > ${podlogfile}
+        done
+      else
+        # pod log
+        podlogfile={{healthcheck.log_path}}/{{item}}.{{healthcheck.pod_log_prefix}}.${_podname}
+        kubectl logs ${_podname} --namespace={{item}} --tail={{healthcheck.pod_log_max_line}} > ${podlogfile}
+      fi
+      # init containers of a pod
+      _initContainerStatus=`kubectl --namespace={{item}} get po ${_podname} -o=custom-columns=CONTAINER:.status.initContainerStatuses[*].ready --no-headers`
+      _initContainerNum=`echo "${_initContainerStatus}" | grep -v '<none>' | sed 's/,/ /g' | wc -w`
+      if [ ${_initContainerNum} -gt "0" ]; then
+        # init container log
+        for ((j=0;j<=${_initContainerNum}-1;j++));
+        do
+          _initContainerName=`kubectl --namespace={{item}} get po ${_podname} -o=custom-columns=CONTAINER:.spec.initContainers[${j}].name --no-headers`
+          podlogfile={{healthcheck.log_path}}/{{item}}.{{healthcheck.pod_log_prefix}}.${_podname}.${_initContainerName}
+          kubectl logs ${_podname} --container=${_initContainerName} --namespace={{item}} --tail={{healthcheck.pod_log_max_line}} > ${podlogfile}
+        done
+      fi
+      # log done
+    done
+    IFS=$OLDIFS
+    true
+  loop: "{{hc_namespaces}}"

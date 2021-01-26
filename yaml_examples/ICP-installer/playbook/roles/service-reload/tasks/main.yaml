@@ -1,0 +1,24 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Restarting calico node
+  shell: kubectl -n kube-system patch daemonset calico-node -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"date\":\"$(date +%s)\"}}}}}"
+
+- name: Restarting calico kube controllers
+  shell: kubectl -n kube-system patch deployment calico-kube-controllers -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"date\":\"$(date +%s)\"}}}}}"
+
+- name: Restarting platform api
+  shell: kubectl -n kube-system patch deployment platform-api -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"date\":\"$(date +%s)\"}}}}}"
+
+- name: Restarting platform deploy
+  shell: kubectl -n kube-system patch deployment platform-deploy -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"date\":\"$(date +%s)\"}}}}}"
+
+- name: Restarting management ingress
+  shell: kubectl -n kube-system patch daemonset icp-management-ingress -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"date\":\"$(date +%s)\"}}}}}"
+
+- name: Restarting tiller
+  shell: kubectl -n kube-system patch deployment tiller-deploy -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"date\":\"$(date +%s)\"}}}}}"

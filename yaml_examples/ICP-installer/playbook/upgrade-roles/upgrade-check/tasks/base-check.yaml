@@ -1,0 +1,64 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking upgrade version file
+  stat:
+    path: "{{ inventory_dir }}/upgrade-version"
+  register: version_result
+
+- name: Getting upgrade version file
+  fetch:
+    src: /opt/ibm/cfc/version
+    dest: "{{ inventory_dir }}/upgrade-version"
+    flat: yes
+  delegate_to: "{{ master_nodes[0] }}"
+  when: version_result.stat.exists == False
+
+- name: Getting the cluster version
+  set_fact:
+    cluster_version: "{{ lookup('file','{{ inventory_dir }}/upgrade-version') }}"
+
+- name: Validating version
+  fail: msg="Unsupported version upgrade"
+  when: cluster_version != backup_version
+
+- name: Validating backup version
+  fail: msg="The backup version is not equal to cluster_version, please check backup_version setting in config.yaml"
+  when: cluster_version != backup_version
+
+- name: Checking offline image package
+  shell: basename $(ls {{ inventory_dir }}/images/*-{{ ansible_architecture }}-{{ version }}.tar.gz | head -1); true
+  args:
+    warn: false
+    executable: /bin/bash
+  delegate_to: localhost
+  register: image_package_name
+
+- name: Aborting installation process
+  fail: msg="Unable to find offline package under images directory"
+  when:
+    - image_package_name.stdout == ""
+    - private_registry_enabled == false
+    - image_repo != "ibmcom"
+
+- name: Re-creating helm admin certificate
+  shell: |
+    if [[ "{{ default_admin_user }}" != "admin" ]] && [[ ! -e admin.crt.backup ]]; then
+      mv admin.crt admin.crt.backup
+      openssl req -key admin.key -new -sha256 -out admin.csr -subj "/O=system:masters/CN={{ default_admin_user }}"
+      openssl x509 -req -CA ../../cfc-keys/ca.crt -CAkey ../../cfc-keys/ca.key -CAcreateserial -in admin.csr -out admin.crt -days 3650
+    fi
+  args:
+    warn: false
+    chdir: "{{ inventory_dir }}/cfc-certs/helm"
+    executable: /bin/bash
+
+- name: Removing install lock file
+  file: path={{ inventory_dir }}/.install.lock state=absent
+
+- name: Removing old image list file
+  file: path={{ inventory_dir }}/.misc/image-list.txt state=absent

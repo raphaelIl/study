@@ -1,0 +1,19 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking OS compatibility for Strongswan
+  fail: msg="OS distribution of all the hosts must be same if IPsec is enabled."
+  when: ansible_distribution == 'RedHat'
+
+- name: Fetching strongswan service status
+  service:
+    name: strongswan
+  register: strongswan_service
+
+- name: Checking strongswan service
+  fail: msg="Install 'Strongswan' package to continue with ipsec configuration"
+  when: strongswan_service.status.LoadState != "loaded"

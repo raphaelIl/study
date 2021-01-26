@@ -1,0 +1,54 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: SCC for icp services on openshift
+  shell:
+    cmd: |
+      cat <<EOF | kubectl --kubeconfig /etc/origin/master/admin.kubeconfig apply --validate=false -f -
+      allowHostDirVolumePlugin: true
+      allowHostIPC: false
+      allowHostNetwork: true
+      allowHostPID: true
+      allowHostPorts: true
+      allowPrivilegedContainer: false
+      allowedCapabilities: null
+      allowedFlexVolumes: null
+      apiVersion: security.openshift.io/v1
+      defaultAddCapabilities: null
+      fsGroup:
+        type: RunAsAny
+      groups:
+        - system:serviceaccounts:kube-system
+        - system:serviceaccounts:istio-system
+        - system:serviceaccounts:cert-manager
+      kind: SecurityContextConstraints
+      metadata:
+        name: icp-scc
+      priority: 1
+      readOnlyRootFilesystem: false
+      requiredDropCapabilities:
+        - MKNOD
+      runAsUser:
+        type: RunAsAny
+      seLinuxContext:
+        type: MustRunAs
+      supplementalGroups:
+        type: RunAsAny
+      users: []
+      volumes:
+        - configMap
+        - downwardAPI
+        - emptyDir
+        - hostPath
+        - nfs
+        - persistentVolumeClaim
+        - projected
+        - secret
+      EOF
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ master_nodes[0] }}"

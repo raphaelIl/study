@@ -1,0 +1,32 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Checking Python interpreter
+  hosts: all
+  max_fail_percentage: 0
+  any_errors_fatal: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Checking Python interpreter
+      raw: ls {{ python_interpreter | default("/usr/bin/python") }} &>/dev/null || (echo "Can't find Python interpreter({{ python_interpreter | default('/usr/bin/python') }}) on your node" && exit 1)
+
+- name: Checking prerequisites
+  hosts: all
+  max_fail_percentage: 0
+  any_errors_fatal: true
+
+  vars:
+    mtu_correction: 0
+
+  roles:
+    - {role: network-check, when: skip_pre_check != true}
+    - {role: ipsec-check, when: skip_pre_check != true and (ipsec_mesh.enable|bool)}
+    - {role: namespace-isolation-check, when: skip_pre_check != true and (isolated_namespaces|length > 0), delegate_to: localhost, run_once: true}
+    - {role: proxy-isolation-check, when: skip_pre_check != true and (isolated_proxies|length > 0), delegate_to: localhost, run_once: true}
+    - check
+    - firewall

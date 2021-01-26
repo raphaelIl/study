@@ -1,0 +1,49 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Waiting for Kubernetes to start
+  wait_for: host="{{ cluster_internal_address }}" port={{ kube_apiserver_secure_port }} state=started timeout={{ wait_for_timeout }}
+
+- name: Creating psp roles
+  shell: |
+    index=0
+    retries=100
+    while true; do
+        sleep 6
+        index=$(( index + 1 ))
+        if [[ $index -eq $retries ]]; then
+            echo "Failed to create psp roles"
+            exit 1
+        fi
+        kubectl api-versions | grep -w extensions/v1beta1 \
+        && kubectl apply --force --overwrite=true -f {{ role_path }}/files/psp.yaml \
+        && break || continue
+    done
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  run_once: true
+
+- name: Creating configmaps to store psp and related clusterroles
+  shell: |
+    index=0
+    retries=100
+    while true; do
+        sleep 6
+        index=$(( index + 1 ))
+        if [[ $index -eq $retries ]]; then
+            echo "Failed to create create configmaps to store psp and related clusterroles"
+            exit 1
+        fi
+        kubectl api-versions | grep -w extensions/v1beta1 \
+        && kubectl apply --force --overwrite=true -f {{ role_path }}/files/psp-config.yaml \
+        && break || continue
+    done
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  run_once: true

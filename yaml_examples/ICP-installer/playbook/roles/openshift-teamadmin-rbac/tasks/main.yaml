@@ -1,0 +1,26 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Creating rbac roles
+  shell: |
+    index=0
+    retries=100
+    while true; do
+        sleep 6
+        index=$(( index + 1 ))
+        if [[ $index -eq $retries ]]; then
+            echo "Failed to create rbac roles fot team administrator"
+            exit 1
+        fi
+        kubectl api-versions | grep -w rbac.authorization.k8s.io/v1 \
+        && kubectl apply --force --overwrite=true -f {{ role_path }}/files/team-admin.yaml \
+        && break || continue
+    done
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  run_once: true

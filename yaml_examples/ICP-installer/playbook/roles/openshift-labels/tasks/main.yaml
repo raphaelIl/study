@@ -1,0 +1,36 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- name: Adding labels to etcd nodes
+  shell: kubectl label --overwrite node {{ item }} etcd=true
+  args:
+    executable: /bin/bash
+  with_items: "{{ groups['etcd'] }}"
+
+- name: Adding labels to master nodes
+  shell: kubectl label --overwrite node {{ item }} master=true
+  args:
+    executable: /bin/bash
+  with_items: "{{ groups['masters'] }}"
+
+- name: Adding labels to proxy nodes
+  shell: kubectl label --overwrite node {{ item }} proxy=true
+  args:
+    executable: /bin/bash
+  with_items: "{{ groups['masters'] }}"
+
+- name: Adding labels to management nodes
+  shell: kubectl label --overwrite node {{ item }} management=true
+  args:
+    executable: /bin/bash
+  with_items: "{{ groups['masters'] }}"
+
+- name: Adding labels to va nodes
+  shell: kubectl label --overwrite node {{ item }} va=true
+  args:
+    executable: /bin/bash
+  with_items: "{{ groups['masters'] }}"

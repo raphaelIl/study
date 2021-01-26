@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: minio-secret
+  namespace: kube-system
+data:
+  accesskey: {{ minio_cfg.accessKey | b64encode }}
+  secretkey: {{ minio_cfg.secretKey | b64encode }}

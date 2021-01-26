@@ -1,0 +1,21 @@
+# Licensed Materials - Property of IBM
+# 5737-E67
+# @ Copyright IBM Corporation 2016, 2018 All Rights Reserved
+# US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+---
+
+- include_tasks: ../roles/etcd/tasks/copy-client-certs.yaml
+
+- include: common.yaml
+
+- include: config.yaml
+
+- include: mariadb-ha.yaml
+  static: no
+  when: master_num|int > 1
+
+- include: kube-service.yaml
+
+- name: Waiting for Kubernetes to start
+  wait_for: host="{{ inventory_hostname }}" port={{ kube_apiserver_secure_port }} state=started timeout={{ wait_for_timeout }}

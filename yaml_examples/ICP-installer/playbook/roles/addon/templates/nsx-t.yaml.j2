@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: nsx-secrets
+  namespace: kube-system
+data:
+{% if nsx_t.client_cert is defined %}
+  client.crt: {{ nsx_t.client_cert | b64encode }}
+{% endif %}
+{% if nsx_t.client_private_key is defined %}
+  client.key: {{ nsx_t.client_private_key | b64encode }}
+{% endif %}
+{% if nsx_t.manager_ca_cert is defined %}
+  ca.crt: {{ nsx_t.manager_ca_cert | b64encode }}
+{% endif %}
+{% if nsx_t.lb_default_cert is defined %}
+  lb-default.crt: {{ nsx_t.lb_default_cert | b64encode }}
+{% endif %}
+{% if nsx_t.lb_default_private_key is defined %}
+  lb-default.key: {{ nsx_t.lb_default_private_key | b64encode }}
+{% endif %}
