@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-eros-shard-allocator-scripts
+  namespace: default
+data:
+  modify-replica-shard.sh: |
+    echo "Modify replica shard"
+    curl -X PUT \
+    -d '{"index":{"number_of_replicas":0}}' \
+    -s \
+    http://elasticsearch-eros:9200/stay_idx1/_settings
+    curl -X PUT \
+    -d '{"index":{"number_of_replicas":0}}' \
+    -s \
+    http://elasticsearch-eros:9200/stay_idx2/_settings
+    echo "Done"

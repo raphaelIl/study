@@ -1,0 +1,39 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: elasticsearch-eros-shard-allocator
+  namespace: default
+  labels:
+    app: elasticsearch-eros-shard-allocator
+spec:
+  schedule: "30 23 * * *"
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 5
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: elasticsearch-eros-shard-allocator
+        spec:
+          serviceAccountName: legacy-app
+          restartPolicy: Never
+          containers:
+            - name: elasticsearch-eros-shard-allocator
+              image: alpine:3.11.6
+              command: ["/bin/sh"]
+              args: ["-c", "apk --no-cache add curl && /scripts/modify-replica-shard.sh"]
+              volumeMounts:
+                - name: config-volume
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
+            - name: config-volume
+              configMap:
+                name: elasticsearch-eros-shard-allocator-scripts
+                items:
+                  - key: modify-replica-shard.sh
+                    path: modify-replica-shard.sh
+                    mode: 0774

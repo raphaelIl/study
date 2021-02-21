@@ -1,0 +1,50 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: elasticsearch-curator-monitoring
+  namespace: monitoring
+  labels:
+    app: elasticsearch-curator-monitoring
+    role: curator
+    tier: middle
+spec:
+  schedule: "@daily"
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: elasticsearch-curator-monitoring
+            role: curator
+            tier: middle
+        spec:
+          serviceAccountName: legacy-app
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: tier
+                        operator: In
+                        values:
+                          - middle
+                      - key: node-group
+                        operator: In
+                        values:
+                          - default
+          restartPolicy: Never
+          containers:
+            - name: elasticsearch-curator-monitoring
+              image: bobrik/curator:5.5.4
+              args: ["--config", "/etc/config/config.yml", "/etc/config/action_file.yml"]
+              volumeMounts:
+                - name: config-volume
+                  mountPath: /etc/config
+          volumes:
+            - name: config-volume
+              configMap:
+                name: elasticsearch-curator-config-monitoring

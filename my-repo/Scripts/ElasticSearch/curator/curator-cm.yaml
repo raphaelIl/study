@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-curator-config-monitoring
+  namespace: monitoring
+  labels:
+    app: elasticsearch-curator-monitoring
+    role: curator
+    tier: middle
+data:
+  action_file.yml: |-
+    ---
+    # Remember, leave a key empty if there is no value.  None will be a string,
+    # not a Python "NoneType"
+    #
+    # Also remember that all examples have 'disable_action' set to True.  If you
+    # want to use this action as a template, be sure to set this to False after
+    # copying it.
+    # https://www.elastic.co/guide/en/elasticsearch/client/curator/current/actionfile.html
+    actions:
+      1:
+        action: delete_indices
+        description: "Clean up ES by deleting old indices. index : monitoring-es-*"
+        options:
+          ignore_empty_list: True
+          timeout_override:
+          continue_if_exception: True
+          disable_action: False
+        filters:
+        - filtertype: pattern
+          kind: prefix
+          value: .monitoring-es-6-
+          exclude:
+        - filtertype: age
+          source: name
+          direction: older
+          timestring: '%Y.%m.%d'
+          unit: days
+          unit_count: 3
+          field:
+          stats_result:
+          epoch:
+          exclude: False
+      2:
+        action: delete_indices
+        description: "Clean up ES by deleting old indices. index : watcher-history-*"
+        options:
+          ignore_empty_list: True
+          timeout_override:
+          continue_if_exception: True
+          disable_action: False
+        filters:
+        - filtertype: pattern
+          kind: prefix
+          value: .watcher-history-6-
+          exclude:
+        - filtertype: age
+          source: name
+          direction: older
+          timestring: '%Y.%m.%d'
+          unit: months
+          unit_count: 1
+          field:
+          stats_result:
+          epoch:
+          exclude: False
+      3:
+        action: delete_indices
+        description: "Clean up ES by deleting old indices. index : monitoring-kibana-6-*"
+        options:
+          ignore_empty_list: True
+          timeout_override:
+          continue_if_exception: True
+          disable_action: False
+        filters:
+        - filtertype: pattern
+          kind: prefix
+          value: .monitoring-kibana-6-
+          exclude:
+        - filtertype: age
+          source: name
+          direction: older
+          timestring: '%Y.%m.%d'
+          unit: days
+          unit_count: 3
+          field:
+          stats_result:
+          epoch:
+          exclude: False
+  config.yml: |-
+    ---
+    # Remember, leave a key empty if there is no value.  None will be a string,
+    # not a Python "NoneType"
+    # https://www.elastic.co/guide/en/elasticsearch/client/curator/current/configfile.html
+    client:
+      hosts:
+        - a44ff4bd84cdf0e1a5c21a48fc90b78e.ap-northeast-1.aws.found.io
+      port: 9243
+      url_prefix:
+      use_ssl: True
+      certificate:
+      client_cert:
+      client_key:
+      ssl_no_validate: False
+      http_auth: elastic:H7RTqjBkZf0c6D11WDcwfXAx
+      timeout: 60
+      master_only: False
+    logging:
+      loglevel: INFO
+      logfile:
+      logformat: default
+      blacklist: ['elasticsearch', 'urllib3']
