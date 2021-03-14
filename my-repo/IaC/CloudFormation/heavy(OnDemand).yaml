@@ -1,0 +1,490 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: DailyHotel Ya-Dev ~ EKS Heavy Node Group
+# 특히, IAM S3쪽은 권한이 많이 막힌 상태로 제공해준것들을 사용해야한다.
+# 적용할 최신 이미지 확인
+# aws ssm get-parameter --name /aws/service/eks/optimized-ami/1.18/amazon-linux-2/recommended/image_id --region ap-northeast-2 --query "Parameter.Value" --output text
+# ami-0936c05417f5becce # 20.11.19
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+          - VpcBlock
+          - VpcCidr
+          - PrivateSubnet01
+          - PrivateSubnet02
+          - PrivateSubnet03
+          - PrivateSubnet04
+          - PublicSubnet01
+          - PublicSubnet02
+      - Label:
+          default: "NodeGroup Configuration"
+        Parameters:
+          - PoolType
+          - NodeImageId
+          - NodeImageIdSSMParam
+          - NodeInstanceType
+          - NodeVolumeSize
+          - PrivateSG
+      - Label:
+          default: "A Zone NodeGroup Counts"
+        Parameters:
+          - NodeAutoScalingGroupDesiredCapacity0A
+          - NodeAutoScalingGroupMaxSize0A
+          - NodeAutoScalingGroupMinSize0A
+      - Label:
+          default: "B Zone NodeGroup Counts"
+        Parameters:
+          - NodeAutoScalingGroupDesiredCapacity0B
+          - NodeAutoScalingGroupMaxSize0B
+          - NodeAutoScalingGroupMinSize0B
+      - Label:
+          default: "C Zone NodeGroup Counts"
+        Parameters:
+          - NodeAutoScalingGroupDesiredCapacity0C
+          - NodeAutoScalingGroupMaxSize0C
+          - NodeAutoScalingGroupMinSize0C
+      - Label:
+          default: "NodeInstanceRole for NodeGroup using IAM Role"
+        Parameters:
+          - IAMRoleInstanceProfile
+      - Label:
+          default: "EKS Cluster Configuration"
+        Parameters:
+          - ClusterName
+          - EKSClusterSG
+      - Label:
+          default: "Bootstrap Arguments"
+        Parameters:
+          - Kubeletextraargs
+          - DockerConfigJson
+
+Parameters:
+  PoolType:
+    Description: The worker node group type (lower_case)
+    Type: String
+    Default: heavy
+    AllowedValues:
+      - default
+      - heavy
+      - georgia
+
+  ClusterName:
+    Type: String
+    Description: The cluster name provided when the cluster was created. If it is incorrect, nodes will not be able to join the cluster.
+    Default: dh-dev-eks
+
+  EKSClusterSG:
+    Type: String
+    Description: '(eks-cluster-sg_ID) EKS created security group applied to ENI that is attached to EKS Control Plane master nodes, as well as any managed workloads.'
+    Default: sg-0e8d91e20bf5f199b
+
+  NodeAutoScalingGroupDesiredCapacity0A:
+    Type: Number
+    Description: Desired capacity of Node Group ASG.
+    Default: 1
+
+  NodeAutoScalingGroupMaxSize0A:
+    Type: Number
+    Description: Maximum size of Node Group ASG. Set to at least 1 greater than NodeAutoScalingGroupDesiredCapacity.
+    Default: 10
+
+  NodeAutoScalingGroupMinSize0A:
+    Type: Number
+    Description: Minimum size of Node Group ASG.
+    Default: 0
+
+  NodeAutoScalingGroupDesiredCapacity0B:
+    Type: Number
+    Description: Desired capacity of Node Group ASG.
+    Default: 1
+
+  NodeAutoScalingGroupMaxSize0B:
+    Type: Number
+    Description: Maximum size of Node Group ASG. Set to at least 1 greater than NodeAutoScalingGroupDesiredCapacity.
+    Default: 10
+
+  NodeAutoScalingGroupMinSize0B:
+    Type: Number
+    Description: Minimum size of Node Group ASG.
+    Default: 0
+
+  NodeAutoScalingGroupDesiredCapacity0C:
+    Type: Number
+    Description: Desired capacity of Node Group ASG.
+    Default: 1
+
+  NodeAutoScalingGroupMaxSize0C:
+    Type: Number
+    Description: Maximum size of Node Group ASG. Set to at least 1 greater than NodeAutoScalingGroupDesiredCapacity.
+    Default: 10
+
+  NodeAutoScalingGroupMinSize0C:
+    Type: Number
+    Description: Minimum size of Node Group ASG.
+    Default: 0
+
+  NodeImageId:
+    Type: String
+    Description: (Optional) Specify your own custom image ID. This value overrides any AWS Systems Manager Parameter Store value specified above.
+    Default: "ami-0936c05417f5becce"
+
+  NodeImageIdSSMParam:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Description: AWS Systems Manager Parameter Store parameter of the AMI ID for the worker node instances.
+    Default: /aws/service/eks/optimized-ami/1.18/amazon-linux-2/recommended/image_id
+
+  NodeInstanceType:
+    Type: String
+    Description: ex) m5.2xlarge, EC2 instance type for the node instances
+    Default: m5.2xlarge
+
+  NodeVolumeSize:
+    Type: Number
+    Description: Node volume size
+    Default: 60
+
+  Kubeletextraargs:
+    Type: String
+    Description: >
+      (--kubelet-extra-args ) It will be added to the "/etc/systemd/system/kubelet.service.d/30-kubelet-extra-args.conf"
+      Arguments to pass to the bootstrap script. 'https://github.com/awslabs/amazon-eks-ami/blob/master/files/bootstrap.sh'
+    Default: "--kubelet-extra-args '--node-labels=tier=backend,node-group=heavy --image-gc-low-threshold=50 --image-gc-high-threshold=65'"
+
+  DockerConfigJson:
+    Type: String
+    Default: ""
+    Description: >
+      (--docker-config-json ) It will be added to the "/etc/docker/daemon.json"
+      Arguments to pass to the bootstrap script. 'https://github.com/awslabs/amazon-eks-ami/blob/master/files/bootstrap.sh'
+
+  IAMRoleInstanceProfile:
+    Type: String
+    Description: It will be used workers for IAM Roles Instance Profiles
+    Default: arn:aws:iam::517727162249:instance-profile/dh-dev-ec2-iam-role
+
+  VpcBlock:
+    Type: String
+    Default: vpc-004389730dbbd3e92
+    Description: VPC_ID
+
+  VpcCidr:
+    Type: String
+    Default: 10.24.0.0/16
+    Description: VPC_CIDR
+
+  PublicSubnet01:
+    Type: String
+    Default: ""
+    Description: Public Subnet01
+
+  PublicSubnet02:
+    Type: String
+    Default: ""
+    Description: Public Subnet02
+
+  PrivateSubnet01:
+    Type: String
+    Description: Private Subnet01
+    Default: subnet-0a9d8f7cdb0c1b1dd
+
+  PrivateSubnet02:
+    Type: String
+    Description: Private Subnet02
+    Default: subnet-0ccaeb21b5cf81d80
+
+  PrivateSubnet03:
+    Type: String
+    Description: Private Subnet02
+    Default: subnet-06b554eb3afcfd5ae
+
+  PrivateSubnet04:
+    Type: String
+    Description: Private Subnet02
+    Default: subnet-099b84e9c450b995c
+
+  PrivateSG:
+    Type: String
+    Description: dev-dh_security-group for internal
+    Default: sg-02063d3c342ee4a52
+
+Mappings:
+  PartitionMap:
+    aws:
+      EC2ServicePrincipal: "ec2.amazonaws.com"
+    aws-cn:
+      EC2ServicePrincipal: "ec2.amazonaws.com.cn"
+    aws-iso:
+      EC2ServicePrincipal: "ec2.c2s.ic.gov"
+    aws-iso-b:
+      EC2ServicePrincipal: "ec2.sc2s.sgov.gov"
+
+Conditions:
+  HasNodeImageId: !Not
+    - "Fn::Equals":
+        - Ref: NodeImageId
+        - ""
+
+Resources:
+  NodeLaunchConfig01:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            DeleteOnTermination: true
+            VolumeSize: !Ref NodeVolumeSize
+            VolumeType: gp2
+      IamInstanceProfile: !Sub '${IAMRoleInstanceProfile}'
+      ImageId: !If
+        - HasNodeImageId
+        - Ref: NodeImageId
+        - Ref: NodeImageIdSSMParam
+      InstanceType: !Ref NodeInstanceType
+      SecurityGroups:
+        - !Sub '${EKSClusterSG}'
+        - !Sub '${PrivateSG}'
+      UserData: !Base64
+        "Fn::Sub": |
+          #!/bin/bash
+          wget -q https://yanolja-se-repository.s3.ap-northeast-2.amazonaws.com/script/se_server_common.sh -O /tmp/se_server_common.sh
+          wget -q https://yanolja-se-repository.s3.ap-northeast-2.amazonaws.com/script/isms.sh -O /tmp/isms.sh
+          sudo chmod +x /tmp/se_server_common.sh /tmp/isms.sh
+          sh /tmp/se_server_common.sh
+          sh /tmp/isms.sh
+          set -o xtrace
+          /etc/eks/bootstrap.sh ${ClusterName} ${Kubeletextraargs} ${DockerConfigJson}
+          /opt/aws/bin/cfn-signal --exit-code $? \
+                   --stack  ${AWS::StackName} \
+                   --resource NodeGroup01  \
+                   --region ${AWS::Region}
+
+  NodeLaunchConfig02:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            DeleteOnTermination: true
+            VolumeSize: !Ref NodeVolumeSize
+            VolumeType: gp2
+      IamInstanceProfile: !Sub '${IAMRoleInstanceProfile}'
+      ImageId: !If
+        - HasNodeImageId
+        - Ref: NodeImageId
+        - Ref: NodeImageIdSSMParam
+      InstanceType: !Ref NodeInstanceType
+      SecurityGroups:
+        - !Sub '${EKSClusterSG}'
+        - !Sub '${PrivateSG}'
+      UserData: !Base64
+        "Fn::Sub": |
+          #!/bin/bash
+          wget -q https://yanolja-se-repository.s3.ap-northeast-2.amazonaws.com/script/se_server_common.sh -O /tmp/se_server_common.sh
+          wget -q https://yanolja-se-repository.s3.ap-northeast-2.amazonaws.com/script/isms.sh -O /tmp/isms.sh
+          sudo chmod +x /tmp/se_server_common.sh /tmp/isms.sh
+          sh /tmp/se_server_common.sh
+          sh /tmp/isms.sh
+          set -o xtrace
+          /etc/eks/bootstrap.sh ${ClusterName} ${Kubeletextraargs} ${DockerConfigJson}
+          /opt/aws/bin/cfn-signal --exit-code $? \
+                   --stack  ${AWS::StackName} \
+                   --resource NodeGroup02  \
+                   --region ${AWS::Region}
+
+  NodeLaunchConfig03:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            DeleteOnTermination: true
+            VolumeSize: !Ref NodeVolumeSize
+            VolumeType: gp2
+      IamInstanceProfile: !Sub '${IAMRoleInstanceProfile}'
+      ImageId: !If
+        - HasNodeImageId
+        - Ref: NodeImageId
+        - Ref: NodeImageIdSSMParam
+      InstanceType: !Ref NodeInstanceType
+      SecurityGroups:
+        - !Sub '${EKSClusterSG}'
+        - !Sub '${PrivateSG}'
+      UserData: !Base64
+        "Fn::Sub": |
+          #!/bin/bash
+          wget -q https://yanolja-se-repository.s3.ap-northeast-2.amazonaws.com/script/se_server_common.sh -O /tmp/se_server_common.sh
+          wget -q https://yanolja-se-repository.s3.ap-northeast-2.amazonaws.com/script/isms.sh -O /tmp/isms.sh
+          sudo chmod +x /tmp/se_server_common.sh /tmp/isms.sh
+          sh /tmp/se_server_common.sh
+          sh /tmp/isms.sh
+          set -o xtrace
+          /etc/eks/bootstrap.sh ${ClusterName} ${Kubeletextraargs} ${DockerConfigJson}
+          /opt/aws/bin/cfn-signal --exit-code $? \
+                   --stack  ${AWS::StackName} \
+                   --resource NodeGroup03  \
+                   --region ${AWS::Region}
+
+  NodeGroup01:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    DependsOn:
+    - NodeLaunchConfig01
+    Properties:
+      AutoScalingGroupName: !Sub "${ClusterName}-${PoolType}-azone-nodegroup"
+      DesiredCapacity: !Ref NodeAutoScalingGroupDesiredCapacity0A
+      LaunchConfigurationName: !Ref NodeLaunchConfig01
+      MaxSize: !Ref NodeAutoScalingGroupMaxSize0A
+      MinSize: !Ref NodeAutoScalingGroupMinSize0A
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet01
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: true
+          Value: !Sub "${ClusterName}-${PoolType}-azone-worker"
+        - Key: !Sub "kubernetes.io/cluster/${ClusterName}"
+          PropagateAtLaunch: true
+          Value: owned
+        - Key: !Sub "k8s.io/cluster-autoscaler/${ClusterName}"
+          PropagateAtLaunch: true
+          Value: owned
+        - Key: !Sub "k8s.io/cluster-autoscaler/enabled"
+          PropagateAtLaunch: true
+          Value: true
+        - Key: Environment
+          PropagateAtLaunch: true
+          Value: dev
+        - Key: Security_level
+          PropagateAtLaunch: true
+          Value: low
+        - Key: Server
+          PropagateAtLaunch: true
+          Value: etc
+        - Key: Service
+          PropagateAtLaunch: true
+          Value: !Sub "${ClusterName}"
+        - Key: profile
+          PropagateAtLaunch: true
+          Value: dev
+        - Key: part
+          PropagateAtLaunch: true
+          Value: dev
+        - Key: Team
+          PropagateAtLaunch: true
+          Value: dh
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: 1
+        MinInstancesInService: !Ref NodeAutoScalingGroupMinSize0A
+        PauseTime: PT5M
+
+  NodeGroup02:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    DependsOn:
+    - NodeLaunchConfig02
+    Properties:
+      AutoScalingGroupName: !Sub "${ClusterName}-${PoolType}-bzone-nodegroup"
+      DesiredCapacity: !Ref NodeAutoScalingGroupDesiredCapacity0B
+      LaunchConfigurationName: !Ref NodeLaunchConfig02
+      MaxSize: !Ref NodeAutoScalingGroupMaxSize0B
+      MinSize: !Ref NodeAutoScalingGroupMinSize0B
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet02
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: true
+          Value: !Sub "${ClusterName}-${PoolType}-bzone-worker"
+        - Key: !Sub kubernetes.io/cluster/${ClusterName}
+          PropagateAtLaunch: true
+          Value: owned
+        - Key: !Sub "k8s.io/cluster-autoscaler/${ClusterName}"
+          PropagateAtLaunch: true
+          Value: owned
+        - Key: !Sub "k8s.io/cluster-autoscaler/enabled"
+          PropagateAtLaunch: true
+          Value: true
+        - Key: Environment
+          PropagateAtLaunch: true
+          Value: dev
+        - Key: Security_level
+          PropagateAtLaunch: true
+          Value: low
+        - Key: Server
+          PropagateAtLaunch: true
+          Value: etc
+        - Key: Service
+          PropagateAtLaunch: true
+          Value: !Sub "${ClusterName}"
+        - Key: profile
+          PropagateAtLaunch: true
+          Value: dev
+        - Key: part
+          PropagateAtLaunch: true
+          Value: dev
+        - Key: Team
+          PropagateAtLaunch: true
+          Value: dh
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: 1
+        MinInstancesInService: !Ref NodeAutoScalingGroupMinSize0B
+        PauseTime: PT5M
+
+  NodeGroup03:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    DependsOn:
+    - NodeLaunchConfig03
+    Properties:
+      AutoScalingGroupName: !Sub "${ClusterName}-${PoolType}-czone-nodegroup"
+      DesiredCapacity: !Ref NodeAutoScalingGroupDesiredCapacity0C
+      LaunchConfigurationName: !Ref NodeLaunchConfig03
+      MaxSize: !Ref NodeAutoScalingGroupMaxSize0C
+      MinSize: !Ref NodeAutoScalingGroupMinSize0C
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet03
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: true
+          Value: !Sub "${ClusterName}-${PoolType}-czone-worker"
+        - Key: !Sub kubernetes.io/cluster/${ClusterName}
+          PropagateAtLaunch: true
+          Value: owned
+        - Key: !Sub "k8s.io/cluster-autoscaler/${ClusterName}"
+          PropagateAtLaunch: true
+          Value: owned
+        - Key: !Sub "k8s.io/cluster-autoscaler/enabled"
+          PropagateAtLaunch: true
+          Value: true
+        - Key: Environment
+          PropagateAtLaunch: true
+          Value: dev
+        - Key: Security_level
+          PropagateAtLaunch: true
+          Value: low
+        - Key: Server
+          PropagateAtLaunch: true
+          Value: etc
+        - Key: Service
+          PropagateAtLaunch: true
+          Value: !Sub "${ClusterName}"
+        - Key: profile
+          PropagateAtLaunch: true
+          Value: dev
+        - Key: part
+          PropagateAtLaunch: true
+          Value: dev
+        - Key: Team
+          PropagateAtLaunch: true
+          Value: dh
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: 1
+        MinInstancesInService: !Ref NodeAutoScalingGroupMinSize0C
+        PauseTime: PT5M
+
+Outputs:
+  AutoScalingGroup:
+    Description: ASG Worker Groups Name
+    Value: !Join [ ",", [ !Ref NodeGroup01, !Ref NodeGroup02, !Ref NodeGroup03] ]
