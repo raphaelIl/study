@@ -1,0 +1,1095 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: 'raphaelInfra'
+# stackname: dh-prod
+
+Parameters:
+  awsAccountNumber:
+    Type: String
+    Default: 738384121673
+    Description: This number is awsAccountNumber
+
+  VpcCIDR:
+    Type: String
+    Default: 10.100.0.0/16
+    Description: The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range.
+
+  WafCIDR:
+    Type: String
+    Default: 10.56.0.0/16
+    Description: >
+      The CIDR can communicate port 443 via PrivateSecurityGroup
+
+  ClusterName:
+    Type: String
+    Default: dh-dev-eks
+    # Default: !Sub "${ClusterName}"
+    Description: >
+      The cluster name provided when the cluster was created. If it is incorrect, nodes will not be able to join the cluster.
+    AllowedValues:
+      - dh-dev-eks
+      - dh-prod-eks
+
+#  PrivateSG:
+#    Type: AWS::EC2::SecurityGroup::Id
+#    Description: dh-prod_security-group for internal
+#    Default: sg-0b48c73fc4a1a0684
+#
+#  ProdDBSG:
+#    Type: AWS::EC2::SecurityGroup::Id
+#    Description: dh-prod_security-group for internal
+#    Default: sg-09c604b68ce07f6e6
+
+  DeploymentEnvironment:
+    Description: >
+      This variable is the DeploymentEnvironment that divides dev & prod, etc...
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - stage
+      - qa
+      - prod
+
+  SecurityLevel:
+    Description: >
+      This variable is the SecurityLevel that divides low & moderate & high
+    Type: String
+    Default: low
+    AllowedValues:
+      - low
+      - moderate
+      - high
+
+  PolicyForIamRole01:
+    Type: String
+    Description: >
+      "This Policy will be used NodeInstanceRole
+      If this field is empty, no effects
+      ex) newdelhi-intranet-dev-s3-readwrite-iam-policy"
+  PolicyForIamRole02:
+    Type: String
+    Description: This Policy will be used NodeInstanceRole
+  PolicyForIamRole03:
+    Type: String
+    Description: This Policy will be used NodeInstanceRole
+  PolicyForIamRole04:
+    Type: String
+    Description: This Policy will be used NodeInstanceRole
+  PolicyForIamRole05:
+    Type: String
+    Description: This Policy will be used NodeInstanceRole
+  PolicyForIamRole06:
+    Type: String
+    Description: This Policy will be used NodeInstanceRole
+
+  PublicExternalLBAZoneCIDR:
+    Type: String
+    Default: 10.100.0.0/24
+    Description: PublicExternalLBAZone for public subnet 01 within the VPC
+
+  PublicExternalLBBZoneCIDR:
+    Type: String
+    Default: 10.100.1.0/24
+    Description: PublicExternalLBBZoneCIDR for public subnet 02 within the VPC
+
+  PublicExternalLBCZoneCIDR:
+    Type: String
+    Default: 10.100.2.0/24
+    Description: PublicExternalLBCZoneCIDR for public subnet 03 within the VPC
+
+  PublicExternalLBDZoneCIDR:
+    Type: String
+    Default: 10.100.3.0/24
+    Description: PublicExternalLBDZoneCIDR for public subnet 04 within the VPC
+
+  PublicDMZAZoneCIDR:
+    Type: String
+    Default: 10.100.4.0/24
+    Description: PublicDMZAZoneCIDR for public subnet 01 within the VPC
+
+  PublicDMZBZoneCIDR:
+    Type: String
+    Default: 10.100.5.0/24
+    Description: PublicDMZBZoneCIDR for public subnet 02 within the VPC
+
+  PublicDMZCZoneCIDR:
+    Type: String
+    Default: 10.100.6.0/24
+    Description: PublicDMZCZoneCIDR for public subnet 03 within the VPC
+
+  PublicDMZDZoneCIDR:
+    Type: String
+    Default: 10.100.7.0/24
+    Description: PublicDMZDZoneCIDR for public subnet 04 within the VPC
+
+  PrivateInternalLBAZoneCIDR:
+    Type: String
+    Default: 10.100.8.0/24
+    Description: PrivateInternalLBAZoneCIDR for private subnet 01 within the VPC
+
+  PrivateInternalLBBZoneCIDR:
+    Type: String
+    Default: 10.100.9.0/24
+    Description: PrivateInternalLBBZoneCIDR for private subnet 02 within the VPC
+
+  PrivateInternalLBCZoneCIDR:
+    Type: String
+    Default: 10.100.10.0/24
+    Description: PrivateInternalLBCZoneCIDR for private subnet 03 within the VPC
+
+  PrivateInternalLBDZoneCIDR:
+    Type: String
+    Default: 10.100.11.0/24
+    Description: PrivateInternalLBDZoneCIDR for private subnet 04 within the VPC
+
+  PrivateSubnetAZoneCIDR:
+    Type: String
+    Default: 10.100.96.0/20
+    Description: PrivateSubnetAZoneCIDR for private subnet 01 within the VPC
+
+  PrivateSubnetBZoneCIDR:
+    Type: String
+    Default: 10.100.112.0/20
+    Description: PrivateSubnetBZoneCIDR for private subnet 02 within the VPC
+
+  PrivateSubnetCZoneCIDR:
+    Type: String
+    Default: 10.100.128.0/20
+    Description: PrivateSubnetCZoneCIDR for private subnet 03 within the VPC
+
+  PrivateSubnetDZoneCIDR:
+    Type: String
+    Default: 10.100.144.0/20
+    Description: PrivateSubnetDZoneCIDR for private subnet 04 within the VPC
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "AWSAccountNumber"
+        Parameters:
+          - awsAccountNumber
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+          - VpcCIDR
+          - WafCIDR
+          - PublicExternalLBAZoneCIDR
+          - PublicExternalLBBZoneCIDR
+          - PublicExternalLBCZoneCIDR
+          - PublicExternalLBDZoneCIDR
+          - PublicDMZAZoneCIDR
+          - PublicDMZBZoneCIDR
+          - PublicDMZCZoneCIDR
+          - PublicDMZDZoneCIDR
+          - PrivateInternalLBAZoneCIDR
+          - PrivateInternalLBBZoneCIDR
+          - PrivateInternalLBCZoneCIDR
+          - PrivateInternalLBDZoneCIDR
+          - PrivateSubnetAZoneCIDR
+          - PrivateSubnetBZoneCIDR
+          - PrivateSubnetCZoneCIDR
+          - PrivateSubnetDZoneCIDR
+      - Label:
+          default: >
+            "Policies for Workers iamRole"
+        Parameters:
+          - PolicyForIamRole01
+          - PolicyForIamRole02
+          - PolicyForIamRole03
+          - PolicyForIamRole04
+          - PolicyForIamRole05
+          - PolicyForIamRole06
+      - Label:
+          default: >
+            "Another Configurations"
+        Parameters:
+          - WafCIDR
+          - ClusterName
+          - DeploymentEnvironment
+          - SecurityLevel
+Mappings:
+  PartitionMap:
+    aws:
+      EC2ServicePrincipal: "ec2.amazonaws.com"
+    aws-cn:
+      EC2ServicePrincipal: "ec2.amazonaws.com.cn"
+    aws-iso:
+      EC2ServicePrincipal: "ec2.c2s.ic.gov"
+    aws-iso-b:
+      EC2ServicePrincipal: "ec2.sc2s.sgov.gov"
+
+Conditions:
+  UseIAM01: !Not [!Equals [!Ref PolicyForIamRole01, ""]]
+  UseIAM02: !Not [!Equals [!Ref PolicyForIamRole02, ""]]
+  UseIAM03: !Not [!Equals [!Ref PolicyForIamRole03, ""]]
+  UseIAM04: !Not [!Equals [!Ref PolicyForIamRole04, ""]]
+  UseIAM05: !Not [!Equals [!Ref PolicyForIamRole05, ""]]
+  UseIAM06: !Not [!Equals [!Ref PolicyForIamRole06, ""]]
+
+#   CreateDefaultResources: !Equals [!Ref PoolType, default]
+#   CreateHeavyResources: !Equals [!Ref PoolType, heavy]
+#   CreateGeorgiaResources: !Equals [!Ref PoolType, georgia]
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-vpc'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-igw'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  VPCGatewayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-public-route'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PrivateRouteTableAZone:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-az-a-private-route'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PrivateRouteTableBZone:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-az-b-private-route'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PrivateRouteTableCZone:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-az-c-private-route'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PrivateRouteTableDZone:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-az-d-private-route'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+
+  PublicRoute:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PrivateRouteAZone:
+    DependsOn:
+      - VPCGatewayAttachment
+      - NatGatewayAZone
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableAZone
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayAZone
+
+  PrivateRouteBZone:
+    DependsOn:
+      - VPCGatewayAttachment
+      - NatGatewayBZone
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableBZone
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayBZone
+
+  PrivateRouteCZone:
+    DependsOn:
+      - VPCGatewayAttachment
+      - NatGatewayCZone
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableCZone
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayCZone
+
+  PrivateRouteDZone:
+    DependsOn:
+      - VPCGatewayAttachment
+      - NatGatewayDZone
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableDZone
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayDZone
+
+
+  PublicExternalLBAZoneRouteTableAssociation:
+    DependsOn:
+      - PublicExternalLBAZone
+      - PublicRouteTable
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicExternalLBAZone
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicExternalLBBZoneRouteTableAssociation:
+    DependsOn:
+      - PublicExternalLBBZone
+      - PublicRouteTable
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicExternalLBBZone
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicExternalLBCZoneRouteTableAssociation:
+    DependsOn:
+      - PublicExternalLBCZone
+      - PublicRouteTable
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicExternalLBCZone
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicExternalLBDZoneRouteTableAssociation:
+    DependsOn:
+      - PublicExternalLBDZone
+      - PublicRouteTable
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicExternalLBDZone
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicDMZAZoneRouteTableAssociation:
+    DependsOn:
+      - PublicDMZAZone
+      - PublicRouteTable
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicDMZAZone
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicDMZBZoneRouteTableAssociation:
+    DependsOn:
+      - PublicDMZBZone
+      - PublicRouteTable
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicDMZBZone
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicDMZCZoneRouteTableAssociation:
+    DependsOn:
+      - PublicDMZCZone
+      - PublicRouteTable
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicDMZCZone
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicDMZDZoneRouteTableAssociation:
+    DependsOn:
+      - PublicDMZDZone
+      - PublicRouteTable
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicDMZDZone
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnetAZoneRouteTableAssociation:
+    DependsOn:
+      - PrivateSubnetAZone
+      - PrivateRouteTableAZone
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetAZone
+      RouteTableId: !Ref PrivateRouteTableAZone
+
+
+  PrivateInternalLBAZoneRouteTableAssociation:
+    DependsOn:
+      - PrivateInternalLBAZone
+      - PrivateRouteTableAZone
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateInternalLBAZone
+      RouteTableId: !Ref PrivateRouteTableAZone
+
+  PrivateSubnetBZoneRouteTableAssociation:
+    DependsOn:
+      - PrivateSubnetBZone
+      - PrivateRouteTableBZone
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetBZone
+      RouteTableId: !Ref PrivateRouteTableBZone
+
+  PrivateInternalLBBZoneRouteTableAssociation:
+    DependsOn:
+      - PrivateSubnetBZone
+      - PrivateInternalLBBZone
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateInternalLBBZone
+      RouteTableId: !Ref PrivateRouteTableBZone
+
+  PrivateSubnetCZoneRouteTableAssociation:
+    DependsOn:
+      - PrivateSubnetCZone
+      - PrivateRouteTableCZone
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetCZone
+      RouteTableId: !Ref PrivateRouteTableCZone
+
+  PrivateInternalLBCZoneRouteTableAssociation:
+    DependsOn:
+      - PrivateSubnetCZone
+      - PrivateInternalLBCZone
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateInternalLBCZone
+      RouteTableId: !Ref PrivateRouteTableCZone
+
+  PrivateSubnetDZoneRouteTableAssociation:
+    DependsOn:
+      - PrivateSubnetDZone
+      - PrivateRouteTableDZone
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetDZone
+      RouteTableId: !Ref PrivateRouteTableDZone
+
+  PrivateInternalLBDZoneRouteTableAssociation:
+    DependsOn:
+      - PrivateSubnetDZone
+      - PrivateInternalLBDZone
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateInternalLBDZone
+      RouteTableId: !Ref PrivateRouteTableDZone
+
+
+  NatGatewayAZone:
+    DependsOn:
+      - NatGatewayEIPAZone
+      - PublicExternalLBAZone
+      - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayEIPAZone.AllocationId'
+      SubnetId: !Ref PublicExternalLBAZone
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-az-a-natgw'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  NatGatewayBZone:
+    DependsOn:
+      - NatGatewayEIPBZone
+      - PublicExternalLBBZone
+      - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayEIPBZone.AllocationId'
+      SubnetId: !Ref PublicExternalLBBZone
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-az-b-natgw'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  NatGatewayCZone:
+    DependsOn:
+      - NatGatewayEIPCZone
+      - PublicExternalLBCZone
+      - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayEIPCZone.AllocationId'
+      SubnetId: !Ref PublicExternalLBCZone
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-az-c-natgw'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  NatGatewayDZone:
+    DependsOn:
+      - NatGatewayEIPDZone
+      - PublicExternalLBDZone
+      - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayEIPDZone.AllocationId'
+      SubnetId: !Ref PublicExternalLBDZone
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-az-d-natgw'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+
+  NatGatewayEIPAZone:
+    DependsOn:
+      - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-az-a-natgw-eip'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  NatGatewayEIPBZone:
+    DependsOn:
+      - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-az-b-natgw-eip'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  NatGatewayEIPCZone:
+    DependsOn:
+      - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-az-c-natgw-eip'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  NatGatewayEIPDZone:
+    DependsOn:
+      - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-az-d-natgw-eip'
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+
+  PublicExternalLBAZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 01
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '0'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PublicExternalLBAZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-public-external_lb-2a-subnet"
+        - Key: kubernetes.io/role/elb
+          Value: 1
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PublicExternalLBBZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 02
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '1'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PublicExternalLBBZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-public-external_lb-2b-subnet"
+        - Key: kubernetes.io/role/elb
+          Value: 1
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PublicExternalLBCZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 03
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '2'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PublicExternalLBCZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-public-external_lb-2c-subnet"
+        - Key: kubernetes.io/role/elb
+          Value: 1
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PublicExternalLBDZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 04
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '3'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PublicExternalLBDZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-public-external_lb-2d-subnet"
+        - Key: kubernetes.io/role/elb
+          Value: 1
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+
+  PublicDMZAZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 01
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '0'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PublicDMZAZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-public-dmz-2a-subnet"
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PublicDMZBZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 02
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '1'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PublicDMZBZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-public-dmz-2b-subnet"
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PublicDMZCZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 03
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '2'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PublicDMZCZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-public-dmz-2c-subnet"
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PublicDMZDZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 04
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '3'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PublicDMZDZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-public-dmz-2d-subnet"
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+
+  PrivateInternalLBAZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 01
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '0'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PrivateInternalLBAZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-private-internal_lb-2a-subnet"
+        - Key: kubernetes.io/role/internal-elb
+          Value: 1
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PrivateInternalLBBZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 02
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '1'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PrivateInternalLBBZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-private-internal_lb-2b-subnet"
+        - Key: kubernetes.io/role/internal-elb
+          Value: 1
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PrivateInternalLBCZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 03
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '2'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PrivateInternalLBCZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-private-internal_lb-2c-subnet"
+        - Key: kubernetes.io/role/internal-elb
+          Value: 1
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PrivateInternalLBDZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 04
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '3'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PrivateInternalLBDZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-private-internal_lb-2d-subnet"
+        - Key: kubernetes.io/role/internal-elb
+          Value: 1
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PrivateSubnetAZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Private Subnet 01
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '0'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      CidrBlock:
+        Ref: PrivateSubnetAZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-private-2a-subnet"
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PrivateSubnetBZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Private Subnet 02
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '1'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      CidrBlock:
+        Ref: PrivateSubnetBZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-private-2b-subnet"
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PrivateSubnetCZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Private Subnet 03
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '2'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      CidrBlock:
+        Ref: PrivateSubnetCZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-private-2c-subnet"
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PrivateSubnetDZone:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Private Subnet 04
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - '3'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      CidrBlock:
+        Ref: PrivateSubnetDZoneCIDR
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-private-2d-subnet"
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+
+  PrivateSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: For dh-prod-dh_security-group
+      GroupName: !Sub "${ClusterName}-PrivateSecurityGroup"
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ClusterName}-PrivateSecurityGroup"
+        - Key: !Sub "kubernetes.io/cluster/${ClusterName}"
+          Value: owned
+        - Key: Environment
+          Value: !Sub '${DeploymentEnvironment}'
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          CidrIp: 10.0.0.0/8
+          FromPort: -1
+          ToPort: -1
+        - IpProtocol: tcp
+          CidrIp: !Ref WafCIDR
+          FromPort: 443
+          ToPort: 443
+  PrivateSecurityGroupChainSelf:
+    Type: AWS::EC2::SecurityGroupIngress
+    Description: ChainSelf SG
+    Properties:
+      GroupId: !Ref PrivateSecurityGroup
+      IpProtocol: -1
+      FromPort: -1
+      ToPort: -1
+      SourceSecurityGroupId: !GetAtt 'PrivateSecurityGroup.GroupId'
+
+  NodeInstanceRole:
+    Type: "AWS::IAM::Role"
+    Description: >
+      "This Role will be used by EC2 Instances"
+    # Condition: CreateDefaultResources
+    Properties:
+      RoleName: !Sub "${ClusterName}-nodeInstanceRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !FindInMap [PartitionMap, !Ref "AWS::Partition", EC2ServicePrincipal]
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKS_CNI_Policy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        - !If [UseIAM01, !Sub "arn:aws:iam::${awsAccountNumber}:policy/${PolicyForIamRole01}", !Ref "AWS::NoValue"]
+        - !If [UseIAM02, !Sub "arn:aws:iam::${awsAccountNumber}:policy/${PolicyForIamRole02}", !Ref "AWS::NoValue"]
+        - !If [UseIAM03, !Sub "arn:aws:iam::${awsAccountNumber}:policy/${PolicyForIamRole03}", !Ref "AWS::NoValue"]
+        - !If [UseIAM04, !Sub "arn:aws:iam::${awsAccountNumber}:policy/${PolicyForIamRole04}", !Ref "AWS::NoValue"]
+        - !If [UseIAM05, !Sub "arn:aws:iam::${awsAccountNumber}:policy/${PolicyForIamRole05}", !Ref "AWS::NoValue"]
+        - !If [UseIAM06, !Sub "arn:aws:iam::${awsAccountNumber}:policy/${PolicyForIamRole06}", !Ref "AWS::NoValue"]
+      Path: /
+
+  eksClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ClusterName}-eksClusterRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - eks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+
+#  eks는 무조건 2개 이상의 AZ를 필요
+#  비용...
+#  eksCluster:
+#    Type: AWS::EKS::Cluster
+#    DependsOn:
+#      - eksClusterRole
+#      - PrivateSubnetAZone
+#      - PrivateSubnetBZone
+#      - PrivateSubnetCZone
+#      - PrivateSubnetDZone
+#    Properties:
+#      Name: !Sub "${ClusterName}"
+#      RoleArn: !GetAtt eksClusterRole.Arn
+#      Version: !Ref eksVersion
+#      ResourcesVpcConfig:
+#        SubnetIds:
+#          - !Ref PrivateSubnetAZone
+#          - !Ref PrivateSubnetBZone
+#          - !Ref PrivateSubnetCZone
+#          - !Ref PrivateSubnetDZone
+#        SecurityGroupIds:
+#          - !Ref PrivateSecurityGroup
+
+#  중첩 스택
+#  NodeGroup
+#  DefaultNodeGroup:
+#    Type: AWS::CloudFormation::Stack
+#    Description: >
+#      "For the Spot NodeGroups"
+#    Properties:
+#      TemplateURL:
+#      Parameters:
+#        DefaultNodeGroupStackName: !Sub "${ClusterName}"
+#        NodeInstanceType: !Ref NodeInstanceType
+#        LogicalType: !Ref LogicalType
+#        ClusterName: !Ref ClusterName
+#        NodeAutoScalingGroupDesiredCapacity: !Ref NodeAutoScalingGroupDesiredCapacity
+#        NodeAutoScalingGroupMaxSize: !Ref NodeAutoScalingGroupMaxSize
+#        NodeAutoScalingGroupMinSize: !Ref NodeAutoScalingGroupMinSize
+#        NodeImageId: !Ref NodeImageId
+#        NodeImageIdSSMParam: !Ref NodeImageIdSSMParam
+#        NodeVolumeSize: !Ref NodeVolumeSize
+#        BootstrapArguments: !Ref BootstrapArguments
+#        NodeInstanceRoleDefault: !Ref NodeInstanceRoleDefault
+#        EKSClusterSG: !GetAtt eksCluster.ClusterSecurityGroupId
+#        PrivateSubnet01: !Ref PrivateSubnet01
+#        PrivateSubnet02: !Ref PrivateSubnet02
+
+
+#  Outputs:
