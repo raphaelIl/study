@@ -1,0 +1,600 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: DailyHotel Ya-Dev ~ EKS Default Mixed Node Group
+# https://yanolja-dev-dh-bucket.s3.ap-northeast-2.amazonaws.com/dh-kubernetes/spot-nodegroup.yaml
+# aws ssm get-parameter --name /aws/service/eks/optimized-ami/1.18/amazon-linux-2/recommended/image_id --region ap-northeast-2 --query "Parameter.Value" --output text
+# ami-0936c05417f5becce # 20.11.19
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Network Configurations"
+        Parameters:
+          - VpcBlock
+          - VpcCidr
+          - PrivateSubnet01
+          - PrivateSubnet02
+          - PrivateSubnet03
+          - PrivateSubnet04
+      - Label:
+          default: "Node Group Configurations"
+        Parameters:
+          - PoolType
+          - NodeImageId
+          - NodeImageIdSSMParam
+          - NodeVolumeSize
+          - PrivateSG
+          - DeploymentEnvironment
+          - OnDemandPercentageAboveBaseCapacity
+          - SpotInstancePools
+          - InstanceTypesOverride
+      - Label:
+          default: "A Zone NodeGroup Counts"
+        Parameters:
+          - NodeAutoScalingGroupDesiredCapacity0A
+          - NodeAutoScalingGroupMaxSize0A
+          - NodeAutoScalingGroupMinSize0A
+      - Label:
+          default: "B Zone NodeGroup Counts"
+        Parameters:
+          - NodeAutoScalingGroupDesiredCapacity0B
+          - NodeAutoScalingGroupMaxSize0B
+          - NodeAutoScalingGroupMinSize0B
+      - Label:
+          default: "C Zone NodeGroup Counts"
+        Parameters:
+          - NodeAutoScalingGroupDesiredCapacity0C
+          - NodeAutoScalingGroupMaxSize0C
+          - NodeAutoScalingGroupMinSize0C
+      - Label:
+          default: "NodeInstanceRole for NodeGroup using IAM Role"
+        Parameters:
+          - IAMRoleInstanceProfile
+      - Label:
+          default: "EKS Cluster Configurations"
+        Parameters:
+          - ClusterName
+          - EKSClusterSG
+      - Label:
+          default: "Bootstrap Arguments"
+        Parameters:
+          - OnDemandKubeletargs
+          - SpotKubeletargs
+          - OnDemandDockerConfigJson
+          - SpotDockerConfigJson
+
+Parameters:
+  PoolType:
+    Description: The worker node group type (lower_case)
+    Type: String
+    Default: default
+    AllowedValues:
+      - default
+      - heavy
+      - georgia
+
+  ClusterName:
+    Type: String
+    Description: The cluster name provided when the cluster was created. If it is incorrect, nodes will not be able to join the cluster.
+    Default: dh-dev-eks
+
+  EKSClusterSG:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: '(eks-cluster-sg_ID) EKS created security group applied to ENI that is attached to EKS Control Plane master nodes, as well as any managed workloads.'
+    Default: sg-0e8d91e20bf5f199b
+
+  NodeAutoScalingGroupDesiredCapacity0A:
+    Type: Number
+    Description: Desired capacity of Node Group ASG.
+    Default: 2
+
+  NodeAutoScalingGroupMaxSize0A:
+    Type: Number
+    Description: Maximum size of Node Group ASG. Set to at least 1 greater than NodeAutoScalingGroupDesiredCapacity.
+    Default: 10
+
+  NodeAutoScalingGroupMinSize0A:
+    Type: Number
+    Description: Minimum size of Node Group ASG. (Even during Scaling)
+    Default: 0
+
+  NodeAutoScalingGroupDesiredCapacity0B:
+    Type: Number
+    Description: Desired capacity of Node Group ASG.
+    Default: 2
+
+  NodeAutoScalingGroupMaxSize0B:
+    Type: Number
+    Description: Maximum size of Node Group ASG. Set to at least 1 greater than NodeAutoScalingGroupDesiredCapacity.
+    Default: 10
+
+  NodeAutoScalingGroupMinSize0B:
+    Type: Number
+    Description: Minimum size of Node Group ASG. (Even during Scaling)
+    Default: 0
+
+  NodeAutoScalingGroupDesiredCapacity0C:
+    Type: Number
+    Description: Desired capacity of Node Group ASG.
+    Default: 2
+
+  NodeAutoScalingGroupMaxSize0C:
+    Type: Number
+    Description: Maximum size of Node Group ASG. Set to at least 1 greater than NodeAutoScalingGroupDesiredCapacity.
+    Default: 10
+
+  NodeAutoScalingGroupMinSize0C:
+    Type: Number
+    Description: Minimum size of Node Group ASG. (Even during Scaling)
+    Default: 0
+
+  NodeImageId:
+    Type: String
+    Description: (Optional) Specify your own custom image ID. This value overrides any AWS Systems Manager Parameter Store value specified above.
+    Default: "ami-0936c05417f5becce"
+
+  NodeImageIdSSMParam:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Description: AWS Systems Manager Parameter Store parameter of the AMI ID for the worker node instances.
+    Default: /aws/service/eks/optimized-ami/1.18/amazon-linux-2/recommended/image_id
+
+  NodeVolumeSize:
+    Type: Number
+    Description: Node volume size (GB)
+    Default: 30
+
+  OnDemandKubeletargs:
+    Type: String
+    Description: >
+      (--kubelet-extra-args ) It will be added to the "/etc/systemd/system/kubelet.service.d/30-kubelet-extra-args.conf"
+      Arguments to pass to the bootstrap script. 'https://github.com/awslabs/amazon-eks-ami/blob/master/files/bootstrap.sh'
+    Default: "--kubelet-extra-args '--node-labels=tier=middle,node-group=default,lifecycle=on-demand --image-gc-low-threshold=50 --image-gc-high-threshold=65'"
+
+  OnDemandDockerConfigJson:
+    Type: String
+    Description: >
+      (--docker-config-json ) It will be added to the "/etc/docker/daemon.json"
+      Arguments to pass to the bootstrap script. 'https://github.com/awslabs/amazon-eks-ami/blob/master/files/bootstrap.sh'
+    Default: ''
+
+  SpotKubeletargs:
+    Type: String
+    Description: >
+      (--kubelet-extra-args ) It will be added to the "/etc/systemd/system/kubelet.service.d/30-kubelet-extra-args.conf"
+      Arguments to pass to the bootstrap script. 'https://github.com/awslabs/amazon-eks-ami/blob/master/files/bootstrap.sh'
+    Default: "--kubelet-extra-args '--node-labels=tier=middle,node-group=default,lifecycle=spot --image-gc-low-threshold=50 --image-gc-high-threshold=65'"
+
+  SpotDockerConfigJson:
+    Type: String
+    Description: >
+      (--docker-config-json ) It will be added to the "/etc/docker/daemon.json"
+      Arguments to pass to the bootstrap script. 'https://github.com/awslabs/amazon-eks-ami/blob/master/files/bootstrap.sh'
+    Default: ''
+
+  IAMRoleInstanceProfile:
+    Type: String
+    Description: It will be used workers for IAM Roles Instance Profiles
+    Default: arn:aws:iam::517727162249:instance-profile/dh-dev-ec2-iam-role
+
+  VpcBlock:
+    Type: String
+    Default: vpc-004389730dbbd3e92
+    Description: VPC_ID
+
+  VpcCidr:
+    Type: String
+    Default: 10.24.0.0/16
+    Description: VPC_CIDR
+
+  PrivateSubnet01:
+    Type: String
+    Description: Private Subnet01
+    Default: subnet-0a9d8f7cdb0c1b1dd
+
+  PrivateSubnet02:
+    Type: String
+    Description: Private Subnet02
+    Default: subnet-0ccaeb21b5cf81d80
+
+  PrivateSubnet03:
+    Type: String
+    Description: Private Subnet03
+    Default: subnet-06b554eb3afcfd5ae
+
+  PrivateSubnet04:
+    Type: String
+    Description: Private Subnet04
+    Default: ''
+
+  PrivateSG:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: dev-dh_security-group for internal
+    Default: sg-02063d3c342ee4a52
+
+  DeploymentEnvironment:
+    Description: This variable is the environment that divides Dev & Prod
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+
+  OnDemandPercentageAboveBaseCapacity:
+    Type: Number
+    Description: "on-demand percentage above base capacity(0-100)"
+    Default: 0
+
+  SpotInstancePools:
+    Type: Number
+    Description: "spot instance pools(1-20), default: 2"
+    Default: 2
+
+  InstanceTypesOverride:
+    Type: String
+    Description: "multiple spot instances to override(seperated by comma)"
+    Default: "m5.2xlarge,t3.2xlarge"
+
+Mappings:
+  PartitionMap:
+    aws:
+      EC2ServicePrincipal: "ec2.amazonaws.com"
+    aws-cn:
+      EC2ServicePrincipal: "ec2.amazonaws.com.cn"
+    aws-iso:
+      EC2ServicePrincipal: "ec2.c2s.ic.gov"
+    aws-iso-b:
+      EC2ServicePrincipal: "ec2.sc2s.sgov.gov"
+
+Conditions:
+  HasNodeImageId: !Not
+    - "Fn::Equals":
+        - Ref: NodeImageId
+        - ""
+
+Resources:
+  NodeLaunchTemplateAzone:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateName: !Sub "${ClusterName}-${PoolType}-NodeLaunchTemplateAzone"
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              DeleteOnTermination: true
+              VolumeSize: !Ref NodeVolumeSize
+              VolumeType: gp2
+        IamInstanceProfile:
+          Arn: !Sub '${IAMRoleInstanceProfile}'
+        ImageId: !If
+          - HasNodeImageId
+          - Ref: NodeImageId
+          - Ref: NodeImageIdSSMParam
+        SecurityGroupIds:
+          - !Sub '${EKSClusterSG}'
+          - !Sub '${PrivateSG}'
+        UserData: !Base64
+          "Fn::Sub": |
+            #!/bin/bash
+            set -o xtrace
+            iid=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+            export AWS_DEFAULT_REGION=${AWS::Region}
+            ilc=`aws ec2 describe-instances --instance-ids  $iid  --query 'Reservations[0].Instances[0].InstanceLifecycle' --output text`
+            if [ "$ilc" == "spot" ]; then
+              /etc/eks/bootstrap.sh ${ClusterName} ${SpotKubeletargs} ${SpotDockerConfigJson}
+            else
+              /etc/eks/bootstrap.sh ${ClusterName} ${OnDemandKubeletargs} ${OnDemandDockerConfigJson}
+            fi
+            /opt/aws/bin/cfn-signal --exit-code $? \
+                     --stack  ${AWS::StackName} \
+                     --resource NodeGroupAzone  \
+                     --region ${AWS::Region}
+            wget -q https://yanolja-se-repository.s3.ap-northeast-2.amazonaws.com/script/se_server_common.sh -O /tmp/se_server_common.sh
+            wget -q https://yanolja-se-repository.s3.ap-northeast-2.amazonaws.com/script/isms.sh -O /tmp/isms.sh
+            sudo chmod +x /tmp/se_server_common.sh /tmp/isms.sh
+            sh /tmp/se_server_common.sh
+            sh /tmp/isms.sh
+
+  NodeGroupAzone:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    DependsOn:
+      - NodeLaunchTemplateAzone
+    Properties:
+      MixedInstancesPolicy:
+        InstancesDistribution:
+          # https://docs.aws.amazon.com/ko_kr/AWSCloudFormation/latest/UserGuide/aws-properties-autoscaling-autoscalinggroup-instancesdistribution.html
+          # 우선 순위가 가장 높은 인스턴스를 사용하여 모든 온디맨드 용량이 충족되지 않는 경우
+          # Auto Scaling 그룹에서 두 번째 우선 순위의 인스턴스 유형 등을 사용하여 남은 용량을 실행합니다.
+          OnDemandAllocationStrategy: prioritized
+
+          # 온디맨드 인스턴스에서 충족되어야 하는 Auto Scaling 그룹의 최소 용량입니다.
+          # 기본값은 0이며, 이 속성을 0으로 설정한 경우 온디맨드 인스턴스가 Auto Scaling 그룹에서 원하는 용량의 비율로 OnDemandPercentageAboveBaseCapacity 설정에 따라 시작됩니다.
+          OnDemandBaseCapacity: 0
+
+          # OnDemandBaseCapacity 이상의 추가 용량에 대한 온디맨드 인스턴스 및 스팟 인스턴스의 비율을 제어합니다.
+          # 범위는 0~100입니다. 기본값은 100입니다.
+          # 이 속성을 100으로 설정한 경우 온디맨드 인스턴스의 비율은 100%, 스팟 인스턴스의 비율은 0%입니다.
+          OnDemandPercentageAboveBaseCapacity: !Ref OnDemandPercentageAboveBaseCapacity
+
+          # 할당 전략이 lowest-price인 경우 Auto Scaling 그룹이 최저 가격의 스팟 인스턴스를 사용하여 인스턴스를 시작하고 인스턴스를 사용자가 지정한 수의 스팟 풀에 고르게 할당합니다.
+          # 할당 전략이 capacity-optimized인 경우 Auto Scaling 그룹이 가용 스팟 용량에 따라 최적으로 선택된 스팟 풀을 사용하여 인스턴스를 시작합니다.
+          # 할당 전략이 lowestPrice인 경우, 플릿은 현재 스팟 가격이 가장 낮은 풀에서 대체 인스턴스를 시작합니다.
+          SpotAllocationStrategy: lowest-price
+          # SpotAllocationStrategy: capacity-optimized
+          SpotInstancePools: !Ref SpotInstancePools
+          # SpotMaxPrice 미지정시 최대 스팟 가격은 온디맨드 요금으로 설정됩니다.
+          # SpotMaxPrice: String
+        LaunchTemplate:
+          LaunchTemplateSpecification:
+            LaunchTemplateId: !Ref NodeLaunchTemplateAzone
+            Version: !GetAtt NodeLaunchTemplateAzone.LatestVersionNumber
+          Overrides:
+            - InstanceType: !Select [0, !Split [ ",", !Ref InstanceTypesOverride ] ]
+            - InstanceType: !Select [1, !Split [ ",", !Ref InstanceTypesOverride ] ]
+      AutoScalingGroupName: !Sub "${ClusterName}-${PoolType}-Azone-nodegroup"
+      DesiredCapacity: !Ref NodeAutoScalingGroupDesiredCapacity0A
+      MaxSize: !Ref NodeAutoScalingGroupMaxSize0A
+      MinSize: !Ref NodeAutoScalingGroupMinSize0A
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet01
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${ClusterName}-${PoolType}-Azone-worker"
+        - Key: !Sub "kubernetes.io/cluster/${ClusterName}"
+          PropagateAtLaunch: 'true'
+          Value: 'owned'
+        - Key: !Sub "k8s.io/cluster-autoscaler/${ClusterName}"
+          PropagateAtLaunch: 'true'
+          Value: 'owned'
+        - Key: !Sub "k8s.io/cluster-autoscaler/enabled"
+          PropagateAtLaunch: 'true'
+          Value: 'true'
+        - Key: Environment
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${DeploymentEnvironment}"
+        - Key: Security_level
+          PropagateAtLaunch: 'true'
+          Value: 'low'
+        - Key: Server
+          PropagateAtLaunch: 'true'
+          Value: 'etc'
+        - Key: Service
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${ClusterName}"
+        - Key: profile
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${DeploymentEnvironment}"
+        - Key: part
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${DeploymentEnvironment}"
+        - Key: Team
+          PropagateAtLaunch: 'true'
+          Value: 'dh'
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: '1'
+        MinInstancesInService: !Ref NodeAutoScalingGroupMinSize0A
+        PauseTime: 'PT5M'
+
+
+  NodeLaunchTemplateBzone:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateName: !Sub "${ClusterName}-${PoolType}-NodeLaunchTemplateBzone"
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              DeleteOnTermination: true
+              VolumeSize: !Ref NodeVolumeSize
+              VolumeType: gp2
+        IamInstanceProfile:
+          Arn: !Sub '${IAMRoleInstanceProfile}'
+        ImageId: !If
+          - HasNodeImageId
+          - Ref: NodeImageId
+          - Ref: NodeImageIdSSMParam
+        SecurityGroupIds:
+          - !Sub '${EKSClusterSG}'
+          - !Sub '${PrivateSG}'
+        UserData: !Base64
+          "Fn::Sub": |
+            #!/bin/bash
+            set -o xtrace
+            iid=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+            export AWS_DEFAULT_REGION=${AWS::Region}
+            ilc=`aws ec2 describe-instances --instance-ids  $iid  --query 'Reservations[0].Instances[0].InstanceLifecycle' --output text`
+            if [ "$ilc" == "spot" ]; then
+              /etc/eks/bootstrap.sh ${ClusterName} ${SpotKubeletargs} ${SpotDockerConfigJson}
+            else
+              /etc/eks/bootstrap.sh ${ClusterName} ${OnDemandKubeletargs} ${OnDemandDockerConfigJson}
+            fi
+            /opt/aws/bin/cfn-signal --exit-code $? \
+                     --stack  ${AWS::StackName} \
+                     --resource NodeGroupBzone  \
+                     --region ${AWS::Region}
+            wget -q https://yanolja-se-repository.s3.ap-northeast-2.amazonaws.com/script/se_server_common.sh -O /tmp/se_server_common.sh
+            wget -q https://yanolja-se-repository.s3.ap-northeast-2.amazonaws.com/script/isms.sh -O /tmp/isms.sh
+            sudo chmod +x /tmp/se_server_common.sh /tmp/isms.sh
+            sh /tmp/se_server_common.sh
+            sh /tmp/isms.sh
+
+  NodeGroupBzone:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    DependsOn:
+      - NodeLaunchTemplateBzone
+    Properties:
+      MixedInstancesPolicy:
+        InstancesDistribution:
+          OnDemandAllocationStrategy: prioritized
+          OnDemandBaseCapacity: 0
+          OnDemandPercentageAboveBaseCapacity: !Ref OnDemandPercentageAboveBaseCapacity
+          SpotAllocationStrategy: lowest-price
+          SpotInstancePools: !Ref SpotInstancePools
+        LaunchTemplate:
+          LaunchTemplateSpecification:
+            LaunchTemplateId: !Ref NodeLaunchTemplateBzone
+            Version: !GetAtt NodeLaunchTemplateBzone.LatestVersionNumber
+          Overrides:
+            - InstanceType: !Select [0, !Split [ ",", !Ref InstanceTypesOverride ] ]
+            - InstanceType: !Select [1, !Split [ ",", !Ref InstanceTypesOverride ] ]
+      AutoScalingGroupName: !Sub "${ClusterName}-${PoolType}-Bzone-nodegroup"
+      DesiredCapacity: !Ref NodeAutoScalingGroupDesiredCapacity0B
+      MaxSize: !Ref NodeAutoScalingGroupMaxSize0B
+      MinSize: !Ref NodeAutoScalingGroupMinSize0B
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet02
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${ClusterName}-${PoolType}-Bzone-worker"
+        - Key: !Sub "kubernetes.io/cluster/${ClusterName}"
+          PropagateAtLaunch: 'true'
+          Value: 'owned'
+        - Key: !Sub "k8s.io/cluster-autoscaler/${ClusterName}"
+          PropagateAtLaunch: 'true'
+          Value: 'owned'
+        - Key: !Sub "k8s.io/cluster-autoscaler/enabled"
+          PropagateAtLaunch: 'true'
+          Value: 'true'
+        - Key: Environment
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${DeploymentEnvironment}"
+        - Key: Security_level
+          PropagateAtLaunch: 'true'
+          Value: 'low'
+        - Key: Server
+          PropagateAtLaunch: 'true'
+          Value: 'etc'
+        - Key: Service
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${ClusterName}"
+        - Key: profile
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${DeploymentEnvironment}"
+        - Key: part
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${DeploymentEnvironment}"
+        - Key: Team
+          PropagateAtLaunch: 'true'
+          Value: 'dh'
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: '1'
+        MinInstancesInService: !Ref NodeAutoScalingGroupMinSize0B
+        PauseTime: 'PT5M'
+
+
+  NodeLaunchTemplateCzone:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateName: !Sub "${ClusterName}-${PoolType}-NodeLaunchTemplateCzone"
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              DeleteOnTermination: true
+              VolumeSize: !Ref NodeVolumeSize
+              VolumeType: gp2
+        IamInstanceProfile:
+          Arn: !Sub '${IAMRoleInstanceProfile}'
+        ImageId: !If
+          - HasNodeImageId
+          - Ref: NodeImageId
+          - Ref: NodeImageIdSSMParam
+        SecurityGroupIds:
+          - !Sub '${EKSClusterSG}'
+          - !Sub '${PrivateSG}'
+        UserData: !Base64
+          "Fn::Sub": |
+            #!/bin/bash
+            set -o xtrace
+            iid=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+            export AWS_DEFAULT_REGION=${AWS::Region}
+            ilc=`aws ec2 describe-instances --instance-ids  $iid  --query 'Reservations[0].Instances[0].InstanceLifecycle' --output text`
+            if [ "$ilc" == "spot" ]; then
+              /etc/eks/bootstrap.sh ${ClusterName} ${SpotKubeletargs} ${SpotDockerConfigJson}
+            else
+              /etc/eks/bootstrap.sh ${ClusterName} ${OnDemandKubeletargs} ${OnDemandDockerConfigJson}
+            fi
+            /opt/aws/bin/cfn-signal --exit-code $? \
+                     --stack  ${AWS::StackName} \
+                     --resource NodeGroupCzone  \
+                     --region ${AWS::Region}
+            wget -q https://yanolja-se-repository.s3.ap-northeast-2.amazonaws.com/script/se_server_common.sh -O /tmp/se_server_common.sh
+            wget -q https://yanolja-se-repository.s3.ap-northeast-2.amazonaws.com/script/isms.sh -O /tmp/isms.sh
+            sudo chmod +x /tmp/se_server_common.sh /tmp/isms.sh
+            sh /tmp/se_server_common.sh
+            sh /tmp/isms.sh
+
+  NodeGroupCzone:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    DependsOn:
+      - NodeLaunchTemplateCzone
+    Properties:
+      MixedInstancesPolicy:
+        InstancesDistribution:
+          OnDemandAllocationStrategy: prioritized
+          OnDemandBaseCapacity: 0
+          OnDemandPercentageAboveBaseCapacity: !Ref OnDemandPercentageAboveBaseCapacity
+          SpotAllocationStrategy: lowest-price
+          SpotInstancePools: !Ref SpotInstancePools
+        LaunchTemplate:
+          LaunchTemplateSpecification:
+            LaunchTemplateId: !Ref NodeLaunchTemplateCzone
+            Version: !GetAtt NodeLaunchTemplateCzone.LatestVersionNumber
+          Overrides:
+            - InstanceType: !Select [0, !Split [ ",", !Ref InstanceTypesOverride ] ]
+            - InstanceType: !Select [1, !Split [ ",", !Ref InstanceTypesOverride ] ]
+      AutoScalingGroupName: !Sub "${ClusterName}-${PoolType}-Czone-nodegroup"
+      DesiredCapacity: !Ref NodeAutoScalingGroupDesiredCapacity0C
+      MaxSize: !Ref NodeAutoScalingGroupMaxSize0C
+      MinSize: !Ref NodeAutoScalingGroupMinSize0C
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet03
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${ClusterName}-${PoolType}-Czone-worker"
+        - Key: !Sub "kubernetes.io/cluster/${ClusterName}"
+          PropagateAtLaunch: 'true'
+          Value: 'owned'
+        - Key: !Sub "k8s.io/cluster-autoscaler/${ClusterName}"
+          PropagateAtLaunch: 'true'
+          Value: 'owned'
+        - Key: !Sub "k8s.io/cluster-autoscaler/enabled"
+          PropagateAtLaunch: 'true'
+          Value: 'true'
+        - Key: Environment
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${DeploymentEnvironment}"
+        - Key: Security_level
+          PropagateAtLaunch: 'true'
+          Value: 'low'
+        - Key: Server
+          PropagateAtLaunch: 'true'
+          Value: 'etc'
+        - Key: Service
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${ClusterName}"
+        - Key: profile
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${DeploymentEnvironment}"
+        - Key: part
+          PropagateAtLaunch: 'true'
+          Value: !Sub "${DeploymentEnvironment}"
+        - Key: Team
+          PropagateAtLaunch: 'true'
+          Value: 'dh'
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: '1'
+        MinInstancesInService: !Ref NodeAutoScalingGroupMinSize0C
+        PauseTime: 'PT5M'
+
+
+Outputs:
+  AutoScalingGroup:
+    Description: ASG Worker Groups Name
+    Value: !Join [ ",", [ !Ref NodeGroupAzone, !Ref NodeGroupBzone, !Ref NodeGroupCzone] ]
