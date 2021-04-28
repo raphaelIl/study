@@ -10,4 +10,4 @@
 - Scripts
 
 
-** ![](docs/Write like an Amazonian.jpg)
+  ![](docs/Write like an Amazonian.jpg)
