@@ -51,6 +51,7 @@ openapi
 openapi-mockingjay
 )
 
+# Dev version: 1.18
 if [ "${KUBERNETES_CLUSTER}" = "dev" ]; then
   len=${#dev_target_services[*]}
   for ((i=0; i<len; i++)); do
@@ -59,6 +60,8 @@ if [ "${KUBERNETES_CLUSTER}" = "dev" ]; then
   done
 fi
 
+
+# Prod version: 1.14
 if [ "${KUBERNETES_CLUSTER}" = "endgame" ]; then
   len=${#endgame_target_services[*]}
   for ((i=0; i<len; i++)); do
