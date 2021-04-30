@@ -6,7 +6,7 @@ ENV=$2
 fail() {
   cat <<-EOM
 Usage: ${0##*/} [AD_ID] [environment]
-e.g. ${0##*/} raphael.kim dev
+e.g. ${0##*/} raphael.kim prod
 EOM
   exit 1
 }
@@ -19,8 +19,7 @@ if [ -z "${ENV}" ]; then
   fail
 fi
 
-which expect > /dev/null
-if [ "$?" -ne 0 ]; then
+if ! which expect > /dev/null; then
   echo "You should install expect binary: 'brew install expect'"
   exit 1
 fi
@@ -36,12 +35,10 @@ case $ENV in
     expect \"password:\"
     send \"${PASSWORD}\\r\"
     expect \"${USERNAME}@\"
-    send \"vault_ssh -u ${USERNAME} -p cmd\\r\"
+    send \"vault_ssh -u ${USERNAME} -p cmd -m dh\\r\"
     expect \"Password:\"
     send \"${PASSWORD}\\r\"
-    expect \"*select*\"
-    send \"2\\r\"
-    sleep 1
+    sleep 0.5
     expect \"${USERNAME}@\"
     send \"ssh yadh@10.24.200.181\\r\"
     interact
@@ -59,14 +56,14 @@ case $ENV in
     expect \"One-Time Code\"
     send \"${otp_code}\\r\"
     expect \"${USERNAME}@\"
-    send \"vault_ssh -u ${USERNAME} -p cmd\\r\"
+    send \"vault_ssh -u ${USERNAME} -p cmd -m dh\\r\"
     expect \"Password:\"
     send \"${PASSWORD}\\r\"
-    expect \"*select*\"
-    send \"2\\r\"
-    sleep 1
+    sleep 0.5
     expect \"${USERNAME}@\"
     send \"ssh yadh@dh-command.prod.yanolja.in\\r\"
+    expect \"yadh@\"
+    send \"sudo su - ${USERNAME}\\r\"
     interact
     "
     ;;
