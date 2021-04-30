@@ -9,5 +9,4 @@
 - Ngnix
 - Scripts
 
-
-  ![](docs/Write like an Amazonian.jpg)
+![](images/Write%20like%20an%20Amazonian.jpg)
