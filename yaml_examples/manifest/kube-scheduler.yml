@@ -1,8 +1,7 @@
-root@master:/etc/kubernetes/manifests# cat kube-scheduler.yaml
+# /etc/kubernetes/manifests/kube-scheduler.yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  creationTimestamp: null
   labels:
     component: kube-scheduler
     tier: control-plane
@@ -41,4 +40,3 @@ spec:
       path: /etc/kubernetes/scheduler.conf
       type: FileOrCreate
     name: kubeconfig
-status: {}

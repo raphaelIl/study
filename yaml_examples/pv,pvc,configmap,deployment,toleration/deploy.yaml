@@ -34,7 +34,7 @@ spec:
     requests:
       storage: "5Gi"
 
----			
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -75,12 +75,12 @@ spec:
         type: test
     spec:
       containers:
-      - name: nginx
-        image: nginx
-        imagePullPolicy: IfNotPresent
-        volumeMounts:
-        - name: car-vol
-          mountPath: /etc/cars
+        - name: nginx
+          image: nginx
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: car-vol
+              mountPath: /etc/cars
       volumes:
       - name: car-vol
         configMap:

@@ -1,8 +1,7 @@
-root@master:/etc/kubernetes/manifests# cat kube-controller-manager.yaml
+# /etc/kubernetes/manifests/kube-controller-manager.yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  creationTimestamp: null
   labels:
     component: kube-controller-manager
     tier: control-plane
@@ -96,4 +95,3 @@ spec:
       path: /usr/share/ca-certificates
       type: DirectoryOrCreate
     name: usr-share-ca-certificates
-status: {}

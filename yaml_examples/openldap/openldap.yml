@@ -12,6 +12,7 @@ spec:
     requests:
       storage: 1Gi
   storageClassName: sc-nfs-app
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -25,7 +26,7 @@ spec:
     requests:
       storage: 1Gi
   storageClassName: sc-nfs-app
- 
+
 ---
 apiVersion: v1
 kind: Service
@@ -41,7 +42,7 @@ spec:
     targetPort: 389
   selector:
     app: ldap
- 
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -86,7 +87,7 @@ spec:
         - name: LDAP_DOMAIN
           value: <domain info>
         - name: LDAP_ADMIN_PASSWORD
-          value: *****
+          value: password
         - name: LDAP_REMOVE_CONFIG_AFTER_SETUP
           value: 'false'
         resources:

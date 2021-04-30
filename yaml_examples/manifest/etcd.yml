@@ -1,8 +1,7 @@
-root@master:/etc/kubernetes/manifests# cat etcd.yaml
+# /etc/kubernetes/manifests/etcd.yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  creationTimestamp: null
   labels:
     component: etcd
     tier: control-plane
@@ -59,4 +58,3 @@ spec:
       path: /var/lib/etcd
       type: DirectoryOrCreate
     name: etcd-data
-status: {}

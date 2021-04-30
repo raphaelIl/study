@@ -27,6 +27,3 @@ spec:
 # operator는 Equal(Default)이다.
 # root@master_t:~# kubectl describe node worker1 | grep Taint
 # Taints:             status=slave1:NoSchedule
-
-
-  
