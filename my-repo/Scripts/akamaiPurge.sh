@@ -9,8 +9,8 @@ COMMAND=$(echo '{
   "propertyName": "cdn.dailyhotel.com",
   "propertyNameExactMatch": true,
   "propertyType": "HOST_HEADER",
-  "metadata": "<?xml version=\"1.0\"?>\n<eccu>\n  <match:recursive-dirs value=\"test/fe\">\n    <revalidate>now</revalidate>\n  </match:recursive-dirs>\n</eccu>",
-  "notes": "Invalidate images in dir(fe)",
+  "metadata": "<?xml version=\"1.0\"?>\n<eccu>\n  <match:recursive-dirs value=\"test/fe\">\n    <revalidate>now</revalidate>\n  </match:recursive-dirs>\n</eccu>", # here
+  "notes": "Invalidate images in dir(test/fe)",
   "requestName": "fe_jenkins",
   "statusUpdateEmails": [
     "dev.tool@dailyhotel.com"
