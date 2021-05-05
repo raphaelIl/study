@@ -23,8 +23,7 @@ RESULT=$(http --auth-type=edgegrid -a default: :${ENDPOINT}/eccu-api/v1/requests
 
 # echo $RESULT
 if [ "$RESULT" = '"SUCCEEDED"' ]; then
-    echo success
-    exit 0
+    echo Success Create ECCU API
 else
     echo fail
     exit 1
