@@ -1,0 +1,49 @@
+# https://kubernetes.io/ko/docs/tasks/inject-data-application/define-command-argument-container/
+# https://github.com/Raphael9292/kaniko#debug-image
+# If you wanna run on your local, you should run sh
+# docker run -it --entrypoint=/busybox/sh gcr.io/kaniko-project/executor:debug
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debug-kaniko
+  labels:
+    type: debug
+    owner: raphael
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      type: debug
+  strategy:
+    type: RollingUpdate
+  # minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        type: debug
+    spec:
+      serviceAccountName: legacy-app
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-group
+                    operator: In
+                    values:
+                      - test-spot
+      containers:
+        - name: debug
+          image: gcr.io/kaniko-project/executor:debug
+          command:
+            - '/busybox/sleep'
+          args:
+            - "86400"
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: '50m'
+              memory: '64Mi'
+            limits:
+              cpu: '100m'
+              memory: '128Mi'
