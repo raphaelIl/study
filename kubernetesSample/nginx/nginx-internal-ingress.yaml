@@ -19,7 +19,7 @@ metadata:
     alb.ingress.kubernetes.io/subnets: dev-private-internal_lb-2a-subnet,dev-private-internal_lb-2b-subnet,dev-private-internal_lb-2c-subnet
 spec:
   rules:
-    - host: sample-nginx.dev.dailyhotel.in
+    - host: raphael-nginx.dev.dailyhotel.in
       http:
         paths:
           - path: /*
