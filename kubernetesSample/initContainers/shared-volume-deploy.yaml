@@ -1,0 +1,70 @@
+# https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-initialization/#create-a-pod-that-has-an-init-container
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shared-volume-test
+  labels:
+    owner: raphael
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      owner: raphael
+  strategy:
+    type: RollingUpdate
+  # minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        owner: raphael
+    spec:
+      serviceAccountName: legacy-app
+# https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod      
+#      securityContext:
+#        runAsUser: 1
+#        runAsGroup: 2
+#        fsGroup: 3
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-group
+                    operator: In
+                    values:
+                      - default
+# For Private Registry
+#      imagePullSecrets:
+#        - name: dockerhub
+      initContainers:
+        - name: sync-dictionary
+          image: raphael9292/aws-cli:1.19.87
+          command:
+            - "/bin/sh"
+          args:
+            - "-c"
+            - "/usr/bin/aws s3 cp s3://yanolja-dev-dh-bucket/elasticsearch-sonic/review/synonyms.txt /review/synonyms.txt && /usr/bin/aws s3 cp s3://yanolja-dev-dh-bucket/elasticsearch-sonic/review/userdict.txt /review/userdict.txt"
+          volumeMounts:
+            - name: review
+              mountPath: '/review'
+      containers:
+        - name: debug
+          image: gcr.io/kaniko-project/executor:debug
+          command:
+            - '/busybox/sleep'
+          args:
+            - "86400"
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: '50m'
+              memory: '64Mi'
+            limits:
+              cpu: '100m'
+              memory: '128Mi'
+          volumeMounts:
+            - name: review
+              mountPath: '/usr/share/elasticsearch/config/review'
+      volumes:
+        - name: review
+          emptyDir: {}
