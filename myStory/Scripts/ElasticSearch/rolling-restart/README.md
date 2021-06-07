@@ -5,6 +5,24 @@
 
 es_ver: 5.6
 
+elasticsearch 서비스 무중단 update를 위해 어떻게 했는지 기록해본다.
+
+### 0. Update Images
+
+> 문서엔 단일 노드마다 데몬을 끄는것으로 나온다.  
+> 어떻게 구현하는가?
+
+sts에서 .spec.updateStrategy(OnDelete)를 활용한다.  
+OnDelete로 적용하면 내가 수동으로 pod를 제거한다는 뜻이다.  
+https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#on-delete
+
+```sh
+# kubectl rollout restart sts ${sts_name}
+kubectl apply -f ${file_name}
+```
+
+</br>
+
 ### 1. Disable shard allocation.
 
 https://www.elastic.co/guide/en/elasticsearch/reference/5.6/shards-allocation.html#_shard_allocation_settings
@@ -15,26 +33,28 @@ curl -X PUT "${ELASTICSEARCH_CLUSTER_ENDPOINT}/_cluster/settings" \
     -d '{"persistent":{"cluster.routing.allocation.enable":"none"}}'
 ```
 
+</br>
+
 ### 2. Stop indexing and perform a synced flush.
 
 ```sh
 curl -X POST "${ELASTICSEARCH_CLUSTER_ENDPOINT}/_flush/synced"
 ```
 
-### 3. Rolling restart or Update Images
+</br>
 
-> 음... 문서엔 단일 노드마다 데몬을 끄는것으로 나온다.
+### 3. Rolling restart
 
-```sh
-# or kubectl apply -f ${file_name}
-kubectl rollout restart sts ${sts_name}
-```
+수동 삭제 및 필요한 기능 sh에 구현  
+</br>
 
 ### 4. Restart the node you changed.
 
 ```sh
 GET _cat/nodes
 ```
+
+</br>
 
 ### 5. Reenable shard allocation.
 
