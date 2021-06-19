@@ -15,12 +15,12 @@
 1. 만들어 놓은 스크립트를 k8s(job)으로 실행한다.
 
 - 사용중인 k8s는 v1.18
-- aws_key 및 slack_webhook은 변수로 처리하여 재사용 가능.
+- ENV로 aws_key 및 slack_webhook은 재사용 가능.
 
-2. aws 인증은 알아서 했다는 전재하에
+2. 컨테이너로 확인 방법
 
 ```sh
-docker run -v ~/.aws:/root/.aws raphael9292/search-user
+docker run -v ~/.aws:/root/.aws raphael9292/search-user:v1.0.1
 or
-docker run -e AWS_SECRET_ACCESS_KEY=xxx -v ~/.aws:/root/.aws raphael9292/search-user
+docker run -e SLACK_WEBHOOK=xxx AWS_ACCESS_KEY_ID=xxx AWS_SECRET_ACCESS_KEY=xxx -v ~/.aws:/root/.aws raphael9292/search-user:v1.0.1
 ```
