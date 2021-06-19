@@ -19,6 +19,7 @@ do
   target_time=$(date -d "$target_times" '+%s')
 #  result_time=$(expr "$NOW" - "$target_time")
   let result_time="$NOW"-"$target_time"
+#  if [[ $accesskeyids == "AKIA"* ]] && [ "$result_time" -gt "$ELAPSED_TIME" ]; then
   if [[ $accesskeyids =~ AKIA* ]] && (("$result_time" > "$ELAPSED_TIME")) ; then
 #    echo -e "find_access_key $User: $accesskeyids"
     for select_user in $User

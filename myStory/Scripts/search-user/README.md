@@ -20,7 +20,7 @@
 2. aws 인증은 알아서 했다는 전재하에
 
 ```sh
-docker run -v ~/.aws:/root/.aws raphael9292/search-user:v1.0.0
+docker run -v ~/.aws:/root/.aws raphael9292/search-user
 or
-docker run -e AWS_SECRET_ACCESS_KEY=xxx -v ~/.aws:/root/.aws raphael9292/search-user:v1.0.0
+docker run -e AWS_SECRET_ACCESS_KEY=xxx -v ~/.aws:/root/.aws raphael9292/search-user
 ```
