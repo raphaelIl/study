@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: search-user
+  namespace: dataflow
+  labels:
+    app: search-user
+spec:
+  template:
+    metadata:
+      labels:
+        app: search-user
+    spec:
+      serviceAccountName: legacy-app
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: tier
+                    operator: In
+                    values:
+                      - middle
+                  - key: node-group
+                    operator: In
+                    values:
+                      - default
+      restartPolicy: Never
+      containers:
+        - name: search-user
+          image: raphael9292/search-user:v1.0.0
+          imagePullPolicy: Always
+          args: ["1500000"] # sec
+          env:
+            - name: SLACK_WEBHOOK
+              value: ''
+            - name: AWS_ACCESS_KEY_ID
+              value: ''
+            - name: AWS_SECRET_ACCESS_KEY
+              value: ''
+  backoffLimit: 4
