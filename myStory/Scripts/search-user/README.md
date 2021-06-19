@@ -20,7 +20,5 @@
 2. 컨테이너로 확인 방법
 
 ```sh
-docker run -v ~/.aws:/root/.aws raphael9292/search-user:v1.0.1
-or
-docker run -e SLACK_WEBHOOK=xxx AWS_ACCESS_KEY_ID=xxx AWS_SECRET_ACCESS_KEY=xxx -v ~/.aws:/root/.aws raphael9292/search-user:v1.0.1
+docker run -e SLACK_WEBHOOK=xxx AWS_ACCESS_KEY_ID=xxx AWS_SECRET_ACCESS_KEY=xxx raphael9292/search-user:v1.0.1
 ```
