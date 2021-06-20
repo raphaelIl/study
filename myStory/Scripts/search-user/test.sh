@@ -12,8 +12,6 @@ NOW=$(date "+%s")
 
 for User in $ALLUSER
 do
-  # date: extra operand ‘+%s’
-  # 아 유저 하나에 키 하나만 있는게 아니지...
   accesskeyids=$(aws iam list-access-keys --user-name "$User" | jq -r '.AccessKeyMetadata[].AccessKeyId')
   target_times=$(aws iam list-access-keys --user-name "$User" | jq -r '.AccessKeyMetadata[].CreateDate')
   target_time=$(date -d "$target_times" '+%s')
@@ -21,7 +19,6 @@ do
   let result_time="$NOW"-"$target_time"
 #  if [[ $accesskeyids == "AKIA"* ]] && [ "$result_time" -gt "$ELAPSED_TIME" ]; then
   if [[ $accesskeyids =~ AKIA* ]] && (("$result_time" > "$ELAPSED_TIME")) ; then
-#    echo -e "find_access_key $User: $accesskeyids"
     for select_user in $User
     do
       aws iam list-access-keys --user-name "$select_user"
