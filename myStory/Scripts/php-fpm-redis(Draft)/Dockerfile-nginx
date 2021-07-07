@@ -1,0 +1,15 @@
+FROM richarvey/nginx-php-fpm:1.9.1
+
+ADD conf/nginx.conf /var/www/html/conf/nginx/nginx.conf
+
+# copy in code
+ADD src/ /var/www/html/
+ADD errors/ /var/www/errors
+
+# Define default command.
+CMD ["/start.sh"]
+
+WORKDIR "/var/www/html"
+
+# Expose ports.
+EXPOSE 80 443
