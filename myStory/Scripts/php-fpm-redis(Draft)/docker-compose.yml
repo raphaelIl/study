@@ -1,0 +1,36 @@
+version: "2.2"
+services:
+  phpredisadmin:
+    # build: .
+    image: erikdubbelboer/phpredisadmin:v1.13.0
+    container_name: phpredisadmin-local
+    environment:
+      - ADMIN_USER=admin
+      - ADMIN_PASS=admin
+      - REDIS_1_HOST=redis
+      - REDIS_1_PORT=6379
+    links:
+      - redis
+    ports:
+      # - "3000:3000"
+      - "3000:80"
+
+  redis:
+    image: redis
+    container_name: redis
+    command: --loglevel verbose
+
+  nginx-fpm:
+    image: raphael9292/nginx-fpm
+    container_name: nginx-fpm-local
+    environment:
+      - REAL_IP_HEADER=1
+      - REAL_IP_FROM=172.27.0.0/16
+    ports:
+      - "80:80"
+      - "443:443"
+      - "9000:9000"
+    links:
+      - "phpredisadmin"
+# networks:
+#   localnet:
