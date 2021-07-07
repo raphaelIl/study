@@ -19,3 +19,12 @@ docker-compose up -d
 # Clean up
 docker-compose down (--remove-orphans)
 ```
+
+실패작
+
+1. fpm이 안됨
+2. /admin 으로 location 지정시 이런 에러 발생
+
+```sh
+2021/07/07 23:41:09 [error] 24#24: *9 connect() failed (111: Connection refused) while connecting to upstream, client: 192.168.16.1, server: _, request: "GET /admin HTTP/1.1", upstream: "http://192.168.16.3:3000/admin", host: "192.168.45.10"
+```
