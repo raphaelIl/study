@@ -5,7 +5,7 @@
 3. 홈페이지 소스가 위치해야 하는 경로는 /var/www/html 이다.
 4. 홈페이지는 http(80), https(443) 으로 운영되어야 하며 고객들이 접속할 때는 공식인증서로 접속이 가능해야 한다.
 5. 도커 재시작시 관리자 페이지의 변경 사항들은 유실되면 안된다. /var/www/html/admin/conf
-   > php 관리자 페이지의 상태를 의미하는건가?
+   > php 관리자 페이지의 상태를 의미하는건가?  
    > 관리자 페이지가 먼저 있어야겠지
 6. Web Server 는 nginx 를 사용한다.
 
@@ -20,9 +20,9 @@ docker-compose up -d
 docker-compose down (--remove-orphans)
 ```
 
-실패작
+### 실패작
 
-1. fpm이 안됨
+1. php-fpm이 안됨
 2. /admin 으로 location 지정시 이런 에러 발생
 
 ```sh
