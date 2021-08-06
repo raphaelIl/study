@@ -22,8 +22,7 @@
 
 * Trouble shooting Kubernetes
   
-  - <img src="images/troubleshooting-kubernetes-v2.jpg" width="1000" height="2000">
-
+  - ![How to works](images/troubleshooting-kubernetes-v2.jpg)
 ---
 
 ## Certs
