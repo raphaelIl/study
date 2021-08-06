@@ -22,7 +22,7 @@
 
 * Trouble shooting Kubernetes
   
-  - <img src="images/troubleshooting-kubernetes-v2.jpg" width="1600" height="2300">
+  - <img src="images/troubleshooting-kubernetes-v2.jpg" width="1000" height="2000">
 
 ---
 
