@@ -12,17 +12,17 @@
 ## state of minds
 * How to works
 
-  - <img src="images/Write%20like%20an%20Amazonian.jpg" width="900" height="900">
+  - <img src="images/Write%20like%20an%20Amazonian.jpg" width="800" height="1000">
 
 
 * 새로 다시 만들기보다 점진적인 개선이 나은 이유
   
-  - <img src="images/The%20Risks%20of%20Rewrites.jpg" width="500" height="500">
+  - <img src="images/The%20Risks%20of%20Rewrites.jpg" width="600" height="300">
 
 
 * Trouble shooting Kubernetes
   
-  - <img src="images/troubleshooting-kubernetes-v2.jpg" width="1400" height="1400">
+  - <img src="images/troubleshooting-kubernetes-v2.jpg" width="1600" height="2300">
 
 ---
 
