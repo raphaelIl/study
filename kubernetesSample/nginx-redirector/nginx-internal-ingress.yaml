@@ -1,14 +1,19 @@
+# k8s version: v1.18 기준
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
-  name: nginx-test-internal-ingress
+  name: raphael-service-check
+  namespace: default
   labels:
-    app: nginx-test
+    app: raphael-service-check
+    tier: middle
   annotations:
     kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:517727162249:certificate/5a339d5d-db91-409b-b65e-e6761cc25d17
     # dev-internal_elb-web-sg - sg-0fc1f3c77e0e0a21a
-    alb.ingress.kubernetes.io/security-groups: dev-internal_elb-web-sg
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:xxx
+#    둘 중 한개는 사용해야함
+#    alb.ingress.kubernetes.io/inbound-cidrs: xxx
+#    alb.ingress.kubernetes.io/security-groups: xxx
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80,"HTTPS": 443}]'
     alb.ingress.kubernetes.io/actions.ssl-redirect: >
       {"type": "redirect", "redirectConfig": { "protocol": "HTTPS", "port": "443", "statusCode": "HTTP_301"}}
@@ -17,9 +22,17 @@ metadata:
       [{"field":"source-ip","sourceIpConfig":{"values":["192.168.0.0/16"]}}]
     alb.ingress.kubernetes.io/scheme: internal
     alb.ingress.kubernetes.io/subnets: dev-private-internal_lb-2a-subnet,dev-private-internal_lb-2b-subnet,dev-private-internal_lb-2c-subnet
+    alb.ingress.kubernetes.io/tags: |-
+      Environment=dev,
+      Service=nginx-test
+    alb.ingress.kubernetes.io/load-balancer-attributes: |-
+      idle_timeout.timeout_seconds=60,
+      access_logs.s3.enabled=true,
+      access_logs.s3.bucket=xxx,
+      access_logs.s3.prefix=nginx-test/dev/application
 spec:
   rules:
-    - host: raphael-nginx.dev.dailyhotel.in
+    - host: xxx
       http:
         paths:
           - path: /*
@@ -28,5 +41,5 @@ spec:
               servicePort: use-annotation
           - path: /*
             backend:
-              serviceName: nginx-test
+              serviceName: service-check
               servicePort: 80
