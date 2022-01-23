@@ -1,15 +1,9 @@
-# My studies
+## My studies
 
-- 아키텍처 참고할 내용
-- RHCE
-- Kubernetes
-- Infra as Code
-- Wiresharks
-- Git
-- Ngnix
-- Scripts
+* 아키텍처 참고할 내용
+* 잡동사니
 
-## state of minds
+### state of minds
 * How to works
 
   - <img src="images/Write%20like%20an%20Amazonian.jpg" width="800" height="1000">
@@ -23,13 +17,3 @@
 * Trouble shooting Kubernetes
   
   - ![How to works](images/troubleshooting-kubernetes-v2.jpg)
----
-
-## Certs
-
-자격증을 업뎃할때가 된거같다.  
-cks도 sap도 얼렁 준비하고 싶다.
-
-- <img src="myStory/Certificate%20Files/CKA_Certificate-1.jpg" width="400" height="300">
-- <img src="myStory/Certificate%20Files/RHCE-1.jpg" width="400" height="300">
-- <img src="myStory/Certificate%20Files/RHCSA-1.jpg" width="400" height="300">
