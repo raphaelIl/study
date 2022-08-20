@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpd-test
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: httpd-test
+  template:
+    metadata:
+      labels:
+        app: httpd-test
+        elbv2.k8s.aws/pod-readiness-gate-inject: enabled
+    spec:
+#      readinessGates:
+#        - conditionType: target-health.alb.ingress.k8s.aws/<ingress name>_<service name>_<service port>
+#        - conditionType: 'target-health.alb.ingress.k8s.aws/httpd-test_httpd-test_80'
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: topology.kubernetes.io/zone
+              labelSelector:
+                matchLabels:
+                  app: httpd-test
+      containers:
+        - name: httpd-test
+          image: nginx:1.17.6-alpine
+#          image: raphael9292/httpd-test
+#          image: httpd:2.4.51-alpine3.15
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          ports:
+            - name: container-port
+              containerPort: 80
+          readinessProbe:
+            # initialDelaySeconds: 60
+            timeoutSeconds: 2
+            httpGet:
+              path: /health
+              port: container-port
+          livenessProbe:
+            # initialDelaySeconds: 60
+            timeoutSeconds: 2
+            httpGet:
+              path: /health
+              port: container-port
+          volumeMounts:
+            - name: localtime
+              mountPath: /etc/localtime
+              readOnly: true
+            - mountPath: /etc/nginx/nginx.conf
+              name: config-volume
+              subPath: nginx.conf
+              readOnly: true
+            - mountPath: /etc/nginx/conf.d
+              name: conf-d
+              readOnly: true
+      volumes:
+        - name: localtime
+          hostPath:
+            path: /etc/localtime
+            type: File
+        - name: config-volume
+          configMap:
+            name: nginx-config
+        - name: conf-d
+          projected:
+            sources:
+              - configMap:
+                  name: nginx-config
+                  items:
+                    - key: default.conf
+                      path: default.conf
+#          volumeMounts:
+#            - mountPath: /etc/nginx/nginx.conf
+#              name: config-volume
+#              subPath: nginx.conf
+#              readOnly: true
+#            - mountPath: /etc/nginx/conf.d
+#              name: conf-d
+#              readOnly: true
+#      volumes:
+#        - name: config-volume
+#          configMap:
+#            name: service-check-nginx-config
+#        - name: conf-d
+#          projected:
+#            sources:
+#              - configMap:
+#                  name: service-check-nginx-config
+#                  items:
+#                    - key: default.conf
+#                      path: default.conf

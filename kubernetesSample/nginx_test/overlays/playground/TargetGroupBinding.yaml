@@ -1,0 +1,8 @@
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata:
+  name: httpd-test
+spec:
+  serviceRef:
+    name: httpd-test
+    port: 80

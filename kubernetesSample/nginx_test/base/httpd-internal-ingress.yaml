@@ -1,0 +1,42 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: httpd-test
+  labels:
+    app: httpd-test
+  annotations:
+    alb.ingress.kubernetes.io/load-balancer-name: raphael-test
+    alb.ingress.kubernetes.io/group.name: raphael-test
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": {"Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
+    # playground-elb-a..d
+    alb.ingress.kubernetes.io/subnets: >
+      subnet-0ddcd232f4aadced5,subnet-0ce146c3e910e99be,subnet-0537501d0c681fcf9,subnet-01be9dc4807579950
+    # *.play.kurly.services
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:318564120968:certificate/3392e685-eec3-47a0-843d-881f175d8d38
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/security-groups: '[elb]-raphael-test'
+    alb.ingress.kubernetes.io/manage-backend-security-group-rules: 'true'
+    alb.ingress.kubernetes.io/tags: Name=raphael,Environment=playground
+spec:
+  rules:
+    # - host: raphael-test.play.kurly.services
+    - host: raphael.play.kurly.services
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ssl-redirect
+                port:
+                  name: use-annotation
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: httpd-test
+                port:
+                  number: 80
