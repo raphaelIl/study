@@ -1,0 +1,199 @@
+# nginx:1.17.6-alpine
+# nginxdemos/hello:plain-text
+# registry.k8s.io/e2e-test-images/echoserver:2.3
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: a-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: a-deploy
+  template:
+    metadata:
+      labels:
+        app: a-deploy
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: topology.kubernetes.io/zone
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: a-deploy
+      containers:
+        - name: a-deploy
+          image: nginxdemos/hello:plain-text
+          readinessProbe:
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            httpGet:
+              path: /
+              port: 80
+          livenessProbe:
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            httpGet:
+              path: /
+              port: 80
+          ports:
+            - containerPort: 80
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: b-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: b-deploy
+  template:
+    metadata:
+      labels:
+        app: b-deploy
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: topology.kubernetes.io/zone
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: b-deploy
+      containers:
+        - name: b-deploy
+          image: nginxdemos/hello:plain-text
+          readinessProbe:
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            httpGet:
+              path: /
+              port: 80
+          livenessProbe:
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            httpGet:
+              path: /
+              port: 80
+          ports:
+            - containerPort: 80
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: a-echoserver
+  labels:
+    app.kubernetes.io/name: a-echoserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: a-echoserver
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: a-echoserver
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: topology.kubernetes.io/zone
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: a-deploy
+      containers:
+        - name: a-echoserver
+          image: registry.k8s.io/e2e-test-images/echoserver:2.3
+          readinessProbe:
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            httpGet:
+              path: /
+              port: 8080
+          livenessProbe:
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            httpGet:
+              path: /
+              port: 8080
+          ports:
+            - containerPort: 8080
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: b-echoserver
+  labels:
+    app.kubernetes.io/name: b-echoserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: b-echoserver
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: b-echoserver
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: topology.kubernetes.io/zone
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: a-deploy
+      containers:
+        - name: b-echoserver
+          image: registry.k8s.io/e2e-test-images/echoserver:2.3
+          readinessProbe:
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            httpGet:
+              path: /
+              port: 8080
+          livenessProbe:
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            httpGet:
+              path: /
+              port: 8080
+          ports:
+            - containerPort: 8080
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP

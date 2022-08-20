@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: a-deploy
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: a-deploy
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: b-deploy
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: b-deploy
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: a-echoserver
+  labels:
+    app.kubernetes.io/name: a-echoserver
+spec:
+  selector:
+    app.kubernetes.io/name: a-echoserver
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: b-echoserver
+  labels:
+    app.kubernetes.io/name: b-echoserver
+spec:
+  selector:
+    app.kubernetes.io/name: b-echoserver
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http

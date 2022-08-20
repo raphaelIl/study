@@ -1,0 +1,13 @@
+apiVersion: vpcresources.k8s.aws/v1beta1
+kind: SecurityGroupPolicy
+metadata:
+  name: allow-rds-access
+spec:
+  podSelector:
+    matchLabels:
+      app: b-deploy
+  securityGroups:
+    # [rds]-pod-raphael
+    # ClusterSG
+    groupIds:
+      - sg-021d6be7274b8c7b9

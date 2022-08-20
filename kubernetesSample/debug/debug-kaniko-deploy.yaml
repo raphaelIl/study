@@ -22,16 +22,6 @@ spec:
       labels:
         type: debug
     spec:
-      serviceAccountName: legacy-app
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: node-group
-                    operator: In
-                    values:
-                      - test-spot
       containers:
         - name: debug
           image: gcr.io/kaniko-project/executor:debug
