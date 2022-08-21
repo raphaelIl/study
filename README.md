@@ -1,11 +1,12 @@
 ## My studies
 
 * 아키텍처 참고할 내용
+* [12 factor app](Architecture/12factor/README.md)
 * 잡동사니
 
 ### state of minds
 
-* How to works
+* How to work
 
   * <img src="images/Write%20like%20an%20Amazonian.jpg" width="800" height="1000">
 
@@ -17,7 +18,7 @@
 
 <br>
 
-* Trouble shooting Kubernetes
+* TroubleShooting Kubernetes
   
   * ![How to works](images/troubleshooting-kubernetes-v2.jpg)
 
