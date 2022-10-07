@@ -1,17 +1,17 @@
 ---
 name: TIL Template
-about: TIL
+about: Today I Learned
 title: ''
 labels: TIL
 assignees: raphaelIl
 
 ---
 
-### TL;DR
+## TL;DR
 - 
 
-### 동작 방식(아키텍처)
+## 동작 방식(아키텍처)
 - 
 
-### 고려 사항
+## 고려 사항
 -
