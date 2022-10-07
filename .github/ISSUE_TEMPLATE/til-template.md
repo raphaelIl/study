@@ -8,13 +8,10 @@ assignees: raphaelIl
 ---
 
 ### TL;DR
-- input
+- 
 
-### 동작 방식
-- input
+### 동작 방식(아키텍처)
+- 
 
-### 아키텍처
-- input
-
-### 참조링크
-- input
+### 고려 사항
+-
