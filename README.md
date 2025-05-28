@@ -18,12 +18,12 @@
 
 <br>
 
+* Agile Poster
+
+  * ![agile](images/Agile-poster-2017-ver16-dandy_Korean_2.jpg)
+
+<br>
+ 
 * TroubleShooting Kubernetes
   
   * ![How to works](images/troubleshooting-kubernetes-v2.jpg)
-
-<br>
-
-* Agile Poster
-
-  * <img src="images/Agile-poster-2017-ver16-dandy_Korean_2.pdf" canvas class="pdf-page">
